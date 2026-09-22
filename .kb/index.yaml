@@ -1,0 +1,21 @@
+docs:
+- id: myflix-code
+  title: myflix — code knowledge
+  revision: 7ffaae7
+  tags:
+  - code
+  - generated
+  summary: Generated code knowledge for the myflix repository.
+- id: myflix-svc
+  title: myflix — curated service knowledge
+  revision: 7ffaae7
+  tags:
+  - code
+  - curated
+  summary: Curated service knowledge for the myflix repository.
+llm:
+  runner: auto
+  model: sonnet-5
+  effort: high
+  max_workers: 5
+  timeout: 300

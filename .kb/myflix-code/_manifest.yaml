@@ -1,0 +1,333 @@
+id: myflix-code
+title: myflix — code knowledge
+revision: 7ffaae7
+ingested: '2026-09-22'
+source_sha256: ''
+sections:
+- id: cmd.build
+  title: Build command
+  summary: 'How to build this repository: pnpm -r build (npm run build) (source: package.json).'
+  status: summarized
+  file: commands
+  tokens:
+    l2: 327
+    l3: 301
+- id: cmd.lint
+  title: Lint command
+  summary: 'Brief section: Lint command.'
+  status: summarized
+  file: commands
+  tokens:
+    l2: 22
+    l3: 22
+  l3_sha256: 11b2bbdcc01e166607e8e425af9cb53e9c5728ce71fb5fdf2b16818e3fdc4322
+  provenance:
+    runner: none
+    model: ''
+    effort: ''
+    prompt_sha: 141999d58ae6
+    at: '2026-09-22T04:15:42Z'
+- id: cmd.run
+  title: Run command
+  summary: 'How to run this repository: pnpm -r --parallel dev (npm run dev) (source:
+    package.json).'
+  status: summarized
+  file: commands
+  tokens:
+    l2: 160
+    l3: 141
+- id: cmd.test
+  title: Test command
+  summary: 'How to test this repository: pnpm -r test (npm test) (source: package.json).'
+  status: summarized
+  file: commands
+  tokens:
+    l2: 354
+    l3: 331
+- id: db.DeletionQueue
+  title: DeletionQueue
+  summary: 'Table DeletionQueue: 8 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 176
+    l3: 150
+- id: db.Episode
+  title: Episode
+  summary: 'Table Episode: 13 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 254
+    l3: 209
+- id: db.Genre
+  title: Genre
+  summary: 'Table Genre: 5 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 113
+    l3: 98
+- id: db.MediaAsset
+  title: MediaAsset
+  summary: 'Table MediaAsset: 26 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 484
+    l3: 390
+- id: db.MyListItem
+  title: MyListItem
+  summary: 'Table MyListItem: 5 columns, PK none detected (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 153
+    l3: 133
+- id: db.PlaybackEvent
+  title: PlaybackEvent
+  summary: 'Table PlaybackEvent: 11 columns, PK none detected (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 253
+    l3: 212
+- id: db.Profile
+  title: Profile
+  summary: 'Table Profile: 12 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 246
+    l3: 203
+- id: db.Rendition
+  title: Rendition
+  summary: 'Table Rendition: 9 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 186
+    l3: 159
+- id: db.Season
+  title: Season
+  summary: 'Table Season: 8 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 169
+    l3: 143
+- id: db.SubtitleTrack
+  title: SubtitleTrack
+  summary: 'Table SubtitleTrack: 9 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 195
+    l3: 166
+- id: db.Title
+  title: Title
+  summary: 'Table Title: 22 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 396
+    l3: 315
+- id: db.TitleGenre
+  title: TitleGenre
+  summary: 'Table TitleGenre: 4 columns, PK none detected (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 126
+    l3: 110
+- id: db.TranscodeJob
+  title: TranscodeJob
+  summary: 'Table TranscodeJob: 15 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 333
+    l3: 282
+- id: db.User
+  title: User
+  summary: 'Table User: 8 columns, PK id (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 175
+    l3: 148
+- id: db.WatchProgress
+  title: WatchProgress
+  summary: 'Table WatchProgress: 7 columns, PK none detected (source: packages/db/prisma/schema.prisma).'
+  status: summarized
+  file: db
+  tokens:
+    l2: 187
+    l3: 159
+- id: dep.node
+  title: Node dependencies
+  summary: '32 direct Node dependencies; 20 more in 1 group (dev); frameworks: NestJS,
+    Next.js, Playwright, React.'
+  status: summarized
+  file: deps
+  tokens:
+    l2: 520
+    l3: 548
+- id: int.other
+  title: other
+  summary: 'Brief section: other.'
+  status: summarized
+  file: integrations
+  tokens:
+    l2: 73
+    l3: 21
+  l3_sha256: 6d578fe7da4d0ce335db916229d1fe693c00744aab2b750bdfd7cb545c23d399
+  provenance:
+    runner: none
+    model: ''
+    effort: ''
+    prompt_sha: 141999d58ae6
+    at: '2026-09-22T04:15:42Z'
+- id: int.redis
+  title: redis
+  summary: 'Brief section: redis.'
+  status: summarized
+  file: integrations
+  tokens:
+    l2: 68
+    l3: 17
+  l3_sha256: d66b848521fd5f33879f7ae9f8c615925a930bdf881779fcd644221ccc902db7
+  provenance:
+    runner: none
+    model: ''
+    effort: ''
+    prompt_sha: 141999d58ae6
+    at: '2026-09-22T04:15:42Z'
+- id: int.s3
+  title: s3
+  summary: 'Brief section: s3.'
+  status: summarized
+  file: integrations
+  tokens:
+    l2: 153
+    l3: 44
+  l3_sha256: d8fbbba13a44939c6d84c932d63004248e155b117f25aac192422afefdd1ad3b
+  provenance:
+    runner: none
+    model: ''
+    effort: ''
+    prompt_sha: 141999d58ae6
+    at: '2026-09-22T04:15:42Z'
+- id: svc.api
+  title: api
+  summary: 'Container api from docker-compose.yml, apps/api/Dockerfile: image build:
+    apps/api/Dockerfile (FROM build), ports 4000, depends on minio, postgres, redis.'
+  status: summarized
+  file: services
+  tokens:
+    l2: 229
+    l3: 232
+- id: svc.minio
+  title: minio
+  summary: 'Brief section: minio.'
+  status: summarized
+  file: services
+  tokens:
+    l2: 126
+    l3: 62
+  l3_sha256: 9fc0ad22242118c6c2932c20527fdb9c598fe160ae69c57837bbee98425fe060
+  provenance:
+    runner: none
+    model: ''
+    effort: ''
+    prompt_sha: 141999d58ae6
+    at: '2026-09-22T04:15:42Z'
+- id: svc.minio-init
+  title: minio-init
+  summary: 'Brief section: minio-init.'
+  status: summarized
+  file: services
+  tokens:
+    l2: 122
+    l3: 63
+  l3_sha256: 1a4f0d6b576adadd7f47fe9bcabb996f0ae55886fe506db14de5f0c1b094425c
+  provenance:
+    runner: none
+    model: ''
+    effort: ''
+    prompt_sha: 141999d58ae6
+    at: '2026-09-22T04:15:42Z'
+- id: svc.nginx
+  title: nginx
+  summary: 'Brief section: nginx.'
+  status: summarized
+  file: services
+  tokens:
+    l2: 143
+    l3: 73
+  l3_sha256: bdf1759e5b59e99c4e1e0e94a8688858948cb18f291b3a5b1950efc18c9661ef
+  provenance:
+    runner: none
+    model: ''
+    effort: ''
+    prompt_sha: 141999d58ae6
+    at: '2026-09-22T04:15:42Z'
+- id: svc.postgres
+  title: postgres
+  summary: 'Brief section: postgres.'
+  status: summarized
+  file: services
+  tokens:
+    l2: 106
+    l3: 51
+  l3_sha256: 2c3de0b98d7c12398d57e7eb84da98d9ce990dafcf35bd66ac7da49f5b74627e
+  provenance:
+    runner: none
+    model: ''
+    effort: ''
+    prompt_sha: 141999d58ae6
+    at: '2026-09-22T04:15:42Z'
+- id: svc.redis
+  title: redis
+  summary: 'Brief section: redis.'
+  status: summarized
+  file: services
+  tokens:
+    l2: 105
+    l3: 50
+  l3_sha256: 6ad8834df8993f258c2ff47e061baa5738844780709b2f1448421539aed768b4
+  provenance:
+    runner: none
+    model: ''
+    effort: ''
+    prompt_sha: 141999d58ae6
+    at: '2026-09-22T04:15:42Z'
+- id: svc.transcoder
+  title: transcoder
+  summary: 'Container transcoder from docker-compose.cpu.yml, infra/ffmpeg/cpu-fallback.Dockerfile:
+    image build: infra/ffmpeg/cpu-fallback.Dockerfile (FROM node:22-bookworm-slim),
+    ports none, depends on nothing.'
+  status: summarized
+  file: services
+  tokens:
+    l2: 129
+    l3: 88
+- id: svc.web
+  title: web
+  summary: 'Container web from docker-compose.yml, apps/web/Dockerfile: image build:
+    apps/web/Dockerfile (FROM build), ports 3000, depends on api.'
+  status: summarized
+  file: services
+  tokens:
+    l2: 180
+    l3: 172
+- id: struct.tree
+  title: Repository tree
+  summary: 'Repository layout: 92 directories, 177 tracked files, entry points: apps/api/src/common/decorators/index.ts,
+    packages/db/src/index.ts, packages/shared/src/index.ts, packages/storage/src/index.ts;
+    console scripts: none detected.'
+  status: summarized
+  file: structure
+  tokens:
+    l2: 131
+    l3: 1192

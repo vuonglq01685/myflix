@@ -1,0 +1,78 @@
+id: myflix-svc
+title: myflix — curated service knowledge
+revision: 7ffaae7
+ingested: '2026-09-22'
+source_sha256: ''
+sections:
+- id: svc.api
+  title: api
+  summary: 'Docker Compose config for the api service (NestJS, apps/api): image, ports,
+    dependencies, and environment variables for auth, storage, and playback.'
+  status: summarized
+  file: services
+  tokens:
+    l2: 250
+    l3: 965
+- id: svc.minio
+  title: minio
+  summary: Defines the minio service (image minio/minio:latest) exposing ports 9000
+    and 9001 in the test compose file.
+  status: summarized
+  file: services
+  tokens:
+    l2: 43
+    l3: 99
+- id: svc.minio-init
+  title: minio-init
+  summary: Defines the minio-init service (minio/mc:latest) that depends on minio
+    and sets MinIO root credentials via env vars.
+  status: summarized
+  file: services
+  tokens:
+    l2: 43
+    l3: 100
+- id: svc.nginx
+  title: nginx
+  summary: Defines the nginx service (nginx:1.27-alpine) reverse-proxying api, minio,
+    and web on port 80 using templated config.
+  status: summarized
+  file: services
+  tokens:
+    l2: 51
+    l3: 135
+- id: svc.postgres
+  title: postgres
+  summary: Defines the postgres service (postgres:16-alpine) exposing port 5432, used
+    with an extensions init script.
+  status: summarized
+  file: services
+  tokens:
+    l2: 40
+    l3: 91
+- id: svc.redis
+  title: redis
+  summary: Redis service (redis:7-alpine) exposed on port 6379:6379 in docker-compose.test.yml,
+    used by api and transcoder Redis modules.
+  status: summarized
+  file: services
+  tokens:
+    l2: 36
+    l3: 102
+- id: svc.transcoder
+  title: transcoder
+  summary: Transcoder service built from infra/ffmpeg/cpu-fallback.Dockerfile (node:22-bookworm-slim),
+    runs node apps/transcoder/dist/main.js with TRANSCODE_ENCODER env var.
+  status: summarized
+  file: services
+  tokens:
+    l2: 99
+    l3: 335
+- id: svc.web
+  title: web
+  summary: Web service (Next.js, apps/web/Dockerfile) depends on api, exposes port
+    3000, and runs pnpm --filter @myflix/web start with S3/Redis/DB env vars.
+  status: summarized
+  file: services
+  tokens:
+    l2: 209
+    l3: 751
