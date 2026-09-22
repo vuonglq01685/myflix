@@ -1,0 +1,7 @@
+**/node_modules
+**/dist
+**/.next
+**/coverage
+.git
+data
+*.md

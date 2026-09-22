@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-bg-page);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Keyboard users must always be able to see where they are — the player
+     and the card grid are otherwise entirely mouse-shaped. */
+  :focus-visible {
+    outline: 2px solid var(--color-text-primary);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .page-x {
+    padding-inline: var(--space-page-x);
+  }
+
+  /* Rows scroll horizontally but must not show a scrollbar. */
+  .row-scroller {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .row-scroller::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Everything animated here is transform/opacity only, so it stays on the
+   compositor. Honour the OS setting rather than overriding it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

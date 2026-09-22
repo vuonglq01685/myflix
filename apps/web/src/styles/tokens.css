@@ -1,0 +1,46 @@
+/* Design tokens — doc 10 §2. Viewer surface only; the admin shell overrides
+   these in its own layout because admin and viewer are deliberately two
+   different design languages (D-5). */
+@theme {
+  /* Near-black, not grey. Artwork reads louder against #141414 (D-4). */
+  --color-bg-page: #141414;
+  --color-bg-card: #181818;
+  --color-bg-elevated: #232323;
+
+  --color-brand: #e50914;
+  --color-brand-hover: #f6121d;
+  --color-success: #5dcaa5;
+
+  --color-text-primary: #ffffff;
+  --color-text-secondary: rgb(255 255 255 / 0.7);
+  --color-text-tertiary: rgb(255 255 255 / 0.5);
+  --color-border-subtle: rgb(255 255 255 / 0.15);
+  --color-overlay-scrim: rgb(0 0 0 / 0.75);
+
+  /* Inter, not Netflix Sans — brand assets are off limits (C-4, NFR-64).
+     Weights 500-700 with slightly negative tracking land closest. */
+  --font-sans: Inter, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --text-billboard: clamp(2rem, 5vw, 4rem);
+  --text-row-title: 1.05rem;
+  --text-card-title: 0.8rem;
+  --text-meta: 0.75rem;
+  --text-modal-body: 0.95rem;
+
+  --ease-standard: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --duration-fast: 180ms;
+  --duration-base: 280ms;
+  --duration-slow: 500ms;
+  --hover-delay-open: 400ms;
+  --hover-delay-close: 180ms;
+
+  --size-header: 68px;
+  --size-billboard: 56vh;
+  --size-billboard-min: 420px;
+  --space-page-x: max(16px, 4vw);
+  --space-card-gap: 8px;
+  --space-row-gap: 32px;
+  --radius-card: 4px;
+  --radius-modal: 8px;
+  --scale-card-hover: 1.5;
+}

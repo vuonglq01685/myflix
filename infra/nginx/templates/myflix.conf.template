@@ -1,0 +1,92 @@
+# MyFlix edge — reverse proxy + media origin (HLA §4.1, HLD §10).
+# Rendered by the nginx image entrypoint via envsubst.
+# NGINX_ENVSUBST_FILTER pins substitution to MEDIA_SIGNING_SECRET so that
+# nginx's own $-variables ($uri, $arg_md5, ...) survive untouched.
+
+proxy_cache_path /var/cache/nginx/media
+                 levels=1:2
+                 keys_zone=media_cache:100m
+                 max_size=20g
+                 inactive=30d
+                 use_temp_path=off;
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+    http2  on;
+    server_name _;
+
+    # Source files are 8-20 GB but never traverse this proxy: the browser
+    # PUTs multipart parts straight to MinIO with a presigned URL (ADR-003).
+    client_max_body_size 32m;
+
+    # ── Rate limit for the auth surface (HLA §8) ─────────────────────────
+    location /api/auth/ {
+        limit_req zone=authzone burst=10 nodelay;
+        proxy_pass http://api:4000;
+        include /etc/nginx/snippets/proxy-common.conf;
+    }
+
+    location /api/ {
+        proxy_pass http://api:4000;
+        include /etc/nginx/snippets/proxy-common.conf;
+        proxy_read_timeout 300s;
+        # MUST stay off — SSE (/api/events/jobs) is unusable when buffered.
+        proxy_buffering off;
+        proxy_cache off;
+        chunked_transfer_encoding off;
+    }
+
+    # ── Protected media origin (ADR-006) ─────────────────────────────────
+    # URL shape: /media/{assetId}/...?md5=<b64url>&expires=<unix>
+    # hash = base64url(md5(secret + assetId + expires))
+    # Quoted: nginx's config parser would otherwise read the regex's {36}
+    # as a block delimiter.
+    location ~ "^/media/(?<asset_id>[0-9a-fA-F-]{36})/(?<media_path>.*)$" {
+        secure_link     $arg_md5,$arg_expires;
+        secure_link_md5 "${MEDIA_SIGNING_SECRET}$asset_id$arg_expires";
+
+        if ($secure_link = "")  { return 403; }   # bad or missing signature
+        if ($secure_link = "0") { return 410; }   # expired -> client renews
+
+        proxy_pass http://minio:9000/myflix-media/$asset_id/$media_path;
+        include /etc/nginx/snippets/proxy-common.conf;
+
+        proxy_cache       media_cache;
+        # Drop the query string from the cache key, otherwise every playback
+        # session mints its own cache entry and the cache is worthless.
+        proxy_cache_key   "$uri";
+        proxy_cache_valid 200 206 30d;
+        proxy_cache_lock  on;
+
+        add_header X-Cache-Status $upstream_cache_status;
+        add_header Cache-Control  "private, max-age=2592000";
+        add_header Accept-Ranges  bytes;
+    }
+
+    # ── Public artwork ───────────────────────────────────────────────────
+    location /images/ {
+        proxy_pass http://minio:9000/myflix-images/;
+        include /etc/nginx/snippets/proxy-common.conf;
+        proxy_cache       media_cache;
+        proxy_cache_key   "$uri";
+        proxy_cache_valid 200 7d;
+        add_header Cache-Control "public, max-age=604800, immutable";
+    }
+
+    location = /nginx-health {
+        access_log off;
+        return 200 "ok\n";
+    }
+
+    location / {
+        proxy_pass http://web:3000;
+        include /etc/nginx/snippets/proxy-common.conf;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+}

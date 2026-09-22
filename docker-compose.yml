@@ -1,0 +1,181 @@
+name: myflix
+
+x-app-env: &app-env
+  NODE_ENV: ${NODE_ENV:-development}
+  TZ: ${TZ:-Asia/Ho_Chi_Minh}
+  DATABASE_URL: ${DATABASE_URL}
+  REDIS_HOST: ${REDIS_HOST:-redis}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+  S3_SECRET_KEY: ${S3_SECRET_KEY}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+  BUCKET_SOURCE: ${BUCKET_SOURCE:-myflix-source}
+  BUCKET_MEDIA: ${BUCKET_MEDIA:-myflix-media}
+  BUCKET_IMAGES: ${BUCKET_IMAGES:-myflix-images}
+  BUCKET_STAGING: ${BUCKET_STAGING:-myflix-staging}
+  MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET}
+  MEDIA_URL_TTL_SEC: ${MEDIA_URL_TTL_SEC:-14400}
+
+services:
+  # ── Edge: the only port published to the LAN ──────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["80:80"]
+    environment:
+      MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET}
+      # Keep envsubst away from nginx's own $variables.
+      NGINX_ENVSUBST_FILTER: "MEDIA_SIGNING_SECRET"
+    volumes:
+      - ./infra/nginx/templates:/etc/nginx/templates:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/snippets:/etc/nginx/snippets:ro
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_started }
+      minio: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/nginx-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      <<: *app-env
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
+    expose: ["3000"]
+    depends_on:
+      api: { condition: service_healthy }
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: 4000
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-2592000}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      UPLOAD_PART_SIZE_BYTES: ${UPLOAD_PART_SIZE_BYTES:-16777216}
+      UPLOAD_URL_TTL_SEC: ${UPLOAD_URL_TTL_SEC:-3600}
+    expose: ["4000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+      minio:    { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  # ── The only GPU-bound service (ADR-005) ──────────────────────────────────
+  transcoder:
+    build:
+      context: .
+      dockerfile: infra/ffmpeg/Dockerfile
+    environment:
+      <<: *app-env
+      TRANSCODE_CONCURRENCY: ${TRANSCODE_CONCURRENCY:-1}
+      TRANSCODE_ENCODER: ${TRANSCODE_ENCODER:-h264_nvenc}
+      TRANSCODE_PRESET: ${TRANSCODE_PRESET:-p5}
+      TRANSCODE_SEGMENT_SEC: ${TRANSCODE_SEGMENT_SEC:-4}
+      TRANSCODE_TIMEOUT_SEC: ${TRANSCODE_TIMEOUT_SEC:-14400}
+      FFMPEG_BIN: ${FFMPEG_BIN:-/usr/local/bin/ffmpeg}
+      FFPROBE_BIN: ${FFPROBE_BIN:-/usr/local/bin/ffprobe}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
+    volumes:
+      - transcode-scratch:/scratch
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+      minio:    { condition: service_healthy }
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, video]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+    expose: ["5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    # AOF on: BullMQ jobs and buffered watch progress must survive a restart.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redisdata:/data
+    expose: ["6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9001:9001"   # console only; the S3 API stays behind nginx
+    expose: ["9000"]
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # One-shot: creates the four buckets, then exits.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio: { condition: service_healthy }
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: ["/bin/sh", "/scripts/minio-init.sh"]
+    volumes:
+      - ./scripts/minio-init.sh:/scripts/minio-init.sh:ro
+    restart: "no"
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  nginx-cache:
+  transcode-scratch:

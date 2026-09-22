@@ -1,0 +1,13 @@
+# Override for machines without an NVIDIA GPU (a Mac dev box, CI).
+#   docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d
+# NFR-15/NFR-16 are NOT met under this override — see roadmap §3 contingency.
+services:
+  transcoder:
+    build:
+      dockerfile: infra/ffmpeg/cpu-fallback.Dockerfile
+    environment:
+      TRANSCODE_ENCODER: libx264
+    deploy:
+      resources:
+        reservations:
+          devices: []
