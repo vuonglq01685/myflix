@@ -22,6 +22,7 @@ myflix/
 ├── infra/
 │   ├── nginx/        reverse proxy, secure_link media origin, cache
 │   ├── ffmpeg/       FFmpeg built with --enable-nvenc, plus a CPU fallback
+│   ├── compose/      the cpu and test compose overrides
 │   └── postgres/     extension bootstrap (citext, pg_trgm, pgcrypto)
 ├── scripts/          minio bucket init, Phase 0 DoD checks
 └── docker-compose.yml

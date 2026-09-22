@@ -1,6 +1,6 @@
 # myflix-svc
 
-> Responsibility text is human-owned. L3 code evidence regenerated at 7ffaae7.
+> Responsibility text is human-owned. L3 code evidence regenerated at 2946696.
 
 ## svc.api api
 
@@ -8,7 +8,7 @@ Service api (apps/api, NestJS): built from apps/api/Dockerfile (build stage), po
 
 ## svc.minio minio
 
-minio service (minio/minio:latest), ports 9000:9000 and 9001:9001, no deps/env; from docker-compose.test.yml.
+Sole home for media bytes; buckets from minio-init, 9000 behind nginx [high-level-architecture §10].
 
 ## svc.minio-init minio-init
 
@@ -20,15 +20,15 @@ nginx (nginx:1.27-alpine) on port 80:80, depends on api/minio/web; env MEDIA_SIG
 
 ## svc.postgres postgres
 
-postgres (postgres:16-alpine), port 5432:5432, no deps/env; test compose; init via infra/postgres/01-extensions.sql.
+System of record for prisma. 01-extensions.sql adds citext, pg_trgm, pgcrypto; only api migrates [system-design §4.3].
 
 ## svc.redis redis
 
-Redis 7-alpine test service on port 6379:6379, no deps/env; used via redis.module.ts in api and transcoder.
+BullMQ queue api to transcoder, plus the watch-progress buffer; appendonly everysec so neither is lost on restart.
 
 ## svc.transcoder transcoder
 
-Transcoder service (docker-compose.cpu.yml) built via infra/ffmpeg/cpu-fallback.Dockerfile (FROM node:22-bookworm-slim); no ports or depends_on; env_keys: TRANSCODE_ENCODER; command: node apps/transcoder/dist/main.js. Includes ffmpeg args/service, keyframe-verifier, transcode/subtitle/cleanup job processors, job-events publisher, redis.module.ts, prisma module/service, and storage module/service.
+Transcode worker, sole video-device claimant. Pulls transcode, subtitle, cleanup jobs from redis, source objects from minio; writes renditions through storage, job rows to postgres via prisma. Command: node apps/transcoder/dist/main.js, FFMPEG_BIN, FFPROBE_BIN from infra/ffmpeg/Dockerfile on nvidia/cuda runtime — stock ffmpeg omits nvidia encoders. TRANSCODE_ENCODER, TRANSCODE_CONCURRENCY, NVIDIA_DRIVER_CAPABILITIES govern that [architecture-decision-records §11-adr-005-hardware-encoding-nvenc-concurre]. docker-compose.cpu.yml swaps libx264 in, reserving no device.
 
 ## svc.web web
 

@@ -1,14 +1,14 @@
 docs:
 - id: myflix-code
   title: myflix — code knowledge
-  revision: 7ffaae7
+  revision: '2946696'
   tags:
   - code
   - generated
   summary: Generated code knowledge for the myflix repository.
 - id: myflix-svc
   title: myflix — curated service knowledge
-  revision: 7ffaae7
+  revision: '2946696'
   tags:
   - code
   - curated
