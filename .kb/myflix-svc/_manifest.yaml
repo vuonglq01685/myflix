@@ -17,11 +17,15 @@ sections:
   title: minio
   summary: S3-compatible object store holding the four media buckets (ADR-003); console
     9001 published, S3 API 9000 internal and reached through nginx.
-  status: summarized
+  status: reviewed
   file: services
   tokens:
     l2: 33
     l3: 101
+  reviewed:
+    by: Lam Vuong <v.pn.vuonglq@vinsmartfuture.tech>
+    at: '2026-09-22T05:23:14Z'
+    l2_sha256: e2ee32f2cdbaf057a20012cbebd45a0cf3d5dc62793b923d6cf18a3ffb863210
 - id: svc.minio-init
   title: minio-init
   summary: Defines the minio-init service (minio/mc:latest) that depends on minio
@@ -44,29 +48,41 @@ sections:
   title: postgres
   summary: System of record for the Prisma schema; citext/pg_trgm/pgcrypto bootstrapped
     at init, migrations applied by api only, network-internal.
-  status: summarized
+  status: reviewed
   file: services
   tokens:
     l2: 41
     l3: 97
+  reviewed:
+    by: Lam Vuong <v.pn.vuonglq@vinsmartfuture.tech>
+    at: '2026-09-22T05:23:14Z'
+    l2_sha256: 557de355089473d64ea582d99160624e0b8aa112ca43598a6c260163cdd32e3b
 - id: svc.redis
   title: redis
   summary: BullMQ queue between api and transcoder plus the watch-progress write buffer;
     AOF on so jobs and progress survive a restart.
-  status: summarized
+  status: reviewed
   file: services
   tokens:
     l2: 31
     l3: 94
+  reviewed:
+    by: Lam Vuong <v.pn.vuonglq@vinsmartfuture.tech>
+    at: '2026-09-22T05:23:14Z'
+    l2_sha256: edb7613507fbfdea1d58fca29309c9798dab83a266fd3ccb2256314731b3eb60
 - id: svc.transcoder
   title: transcoder
   summary: 'The only GPU-bound service: BullMQ consumer running NVENC FFmpeg built
     from infra/ffmpeg/Dockerfile, concurrency fixed at 1 (ADR-005).'
-  status: summarized
+  status: reviewed
   file: services
   tokens:
     l2: 149
     l3: 488
+  reviewed:
+    by: Lam Vuong <v.pn.vuonglq@vinsmartfuture.tech>
+    at: '2026-09-22T05:23:14Z'
+    l2_sha256: 297b1c35e5641d1f50671ce6a2ea5872c97087d501804923037e7d9aae5313d2
 - id: svc.web
   title: web
   summary: Web service (Next.js, apps/web/Dockerfile) depends on api, exposes port
