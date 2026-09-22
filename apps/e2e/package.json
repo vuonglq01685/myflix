@@ -1,0 +1,17 @@
+{
+  "name": "@myflix/e2e",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "echo 'e2e runs via pnpm --filter @myflix/e2e test:e2e (needs the stack up)'",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "install:browsers": "playwright install chromium firefox webkit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

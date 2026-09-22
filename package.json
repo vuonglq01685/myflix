@@ -18,7 +18,7 @@
     "up": "docker compose up -d --build",
     "down": "docker compose down",
     "verify:phase0": "bash scripts/verify-phase0.sh",
-    "test:e2e": "pnpm --filter @myflix/api test:e2e && pnpm --filter @myflix/web test:e2e"
+    "test:e2e": "pnpm --filter @myflix/api test:e2e && pnpm --filter @myflix/e2e test:e2e"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

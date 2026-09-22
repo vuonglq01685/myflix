@@ -39,7 +39,7 @@ test-e2e:       ## API integration tests against the compose datastores, then Pl
 	set -a; . ./.env; set +a; \
 	DATABASE_URL=postgresql://$$POSTGRES_USER:$$POSTGRES_PASSWORD@localhost:5432/$$POSTGRES_DB \
 	REDIS_HOST=localhost S3_ENDPOINT=http://localhost:9000 pnpm --filter @myflix/api test:e2e
-	pnpm --filter @myflix/web test:e2e
+	pnpm --filter @myflix/e2e test:e2e
 
 clean:          ## Stop and delete volumes — DESTROYS the database and media
 	$(COMPOSE) down -v

@@ -13,7 +13,8 @@ myflix/
 ├── apps/
 │   ├── web/          Next.js 15 — viewer + admin, split by route group
 │   ├── api/          NestJS 11 — auth, catalog, playback, ingest, admin, SSE
-│   └── transcoder/   NestJS worker — BullMQ consumer + FFmpeg/NVENC
+│   ├── transcoder/   NestJS worker — BullMQ consumer + FFmpeg/NVENC
+│   └── e2e/          Playwright — the 8 cross-service scenarios from doc 13 §6
 ├── packages/
 │   ├── shared/       enums, DTOs, error codes, ladder/GOP/signing/progress logic
 │   ├── storage/      S3 client shared by api and worker
