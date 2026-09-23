@@ -255,10 +255,13 @@ Review: ✅ r2 — A3 clean (spec compliance + code quality), independent review
 - Produces for later tasks: `.env.example` with 45 variables — this task's own Steps below already verify T22's variable-count clause (ticket `:295`); T22's other two clauses (`.env` gitignored, every value a placeholder) are AC15's job and are verified independently by Task 7, not deferred here.
 
 **Steps**
-- [ ] (Host, no Docker needed) Failing test — T22's count clause: `test "$(grep -cE '^[A-Z_0-9]+=' .env.example)" = "45"`. Expect: fails — current count is `41`.
-- [ ] Append the 4 lines above (with the new comment header) to `.env.example`.
-- [ ] Re-run Step 1's command. Expect: passes (count `45`) — T22's variable-count clause now holds.
-- [ ] Confirm no duplicate keys were introduced: `grep -oE '^[A-Z_0-9]+' .env.example | sort | uniq -d` — expect empty output.
+- [x] (Host, no Docker needed) Failing test — T22's count clause: `test "$(grep -cE '^[A-Z_0-9]+=' .env.example)" = "45"`. Expect: fails — current count is `41`.
+- [x] Append the 4 lines above (with the new comment header) to `.env.example`.
+- [x] Re-run Step 1's command. Expect: passes (count `45`) — T22's variable-count clause now holds.
+- [x] Confirm no duplicate keys were introduced: `grep -oE '^[A-Z_0-9]+' .env.example | sort | uniq -d` — expect empty output.
+
+Review: ✅ r2 — A3 clean (spec compliance + code quality), independent reviewer, 2 rounds. Commit `0683f6e` unaltered throughout. AC22 verified on **set equality**, not just count: the reviewer parsed the 8 `env_keys:` blocks in `.kb/myflix-svc/services.raw.md` and measured `union − env: []` and `env − union: []`, both 45.
+
 
 ## Task 7 — No committed secrets, `.env` gitignored, `.env.example` placeholder-only (AC15)
 
