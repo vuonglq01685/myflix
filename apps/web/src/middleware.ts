@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { logger } from './lib/logger';
 
 /**
  * Cheap redirects only. This is a UX shortcut, not a security control — the
@@ -7,6 +8,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  logger.info({ msg: 'request', method: request.method, path: pathname });
   const hasSession = request.cookies.has('refresh_token');
   const hasProfile = request.cookies.has('pid');
 
@@ -24,5 +26,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/browse/:path*', '/title/:path*', '/search', '/genre/:path*', '/my-list', '/watch/:path*', '/admin/:path*'],
+  matcher: ['/', '/browse/:path*', '/title/:path*', '/search', '/genre/:path*', '/my-list', '/watch/:path*', '/admin/:path*'],
 };

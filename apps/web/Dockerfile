@@ -17,4 +17,4 @@ RUN pnpm --filter @myflix/shared build \
 FROM build AS runtime
 ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["pnpm", "--filter", "@myflix/web", "start"]
+CMD ["pnpm", "--filter", "@myflix/web", "exec", "next", "start", "--port", "3000"]
