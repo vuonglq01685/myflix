@@ -51,7 +51,7 @@ services:
       <<: *app-env
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
-    expose: ["3000"]
+    ports: ["127.0.0.1:3000:3000"]
     depends_on:
       api: { condition: service_healthy }
 
@@ -72,7 +72,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       UPLOAD_PART_SIZE_BYTES: ${UPLOAD_PART_SIZE_BYTES:-16777216}
       UPLOAD_URL_TTL_SEC: ${UPLOAD_URL_TTL_SEC:-3600}
-    expose: ["4000"]
+    ports: ["127.0.0.1:4000:4000"]
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
@@ -150,7 +150,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "9001:9001"   # console only; the S3 API stays behind nginx
+      - "127.0.0.1:9001:9001"   # console only; the S3 API stays behind nginx
     expose: ["9000"]
     volumes:
       - miniodata:/data
