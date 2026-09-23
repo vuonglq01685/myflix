@@ -121,7 +121,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - myflix-postgres-data:/var/lib/postgresql/data
       - ./infra/postgres:/docker-entrypoint-initdb.d:ro
     expose: ["5432"]
     healthcheck:
@@ -135,7 +135,7 @@ services:
     # AOF on: BullMQ jobs and buffered watch progress must survive a restart.
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
-      - redisdata:/data
+      - myflix-redis-data:/data
     expose: ["6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -153,7 +153,7 @@ services:
       - "127.0.0.1:9001:9001"   # console only; the S3 API stays behind nginx
     expose: ["9000"]
     volumes:
-      - miniodata:/data
+      - myflix-minio-data:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -174,8 +174,8 @@ services:
     restart: "no"
 
 volumes:
-  pgdata:
-  redisdata:
-  miniodata:
+  myflix-postgres-data:
+  myflix-redis-data:
+  myflix-minio-data:
   nginx-cache:
   transcode-scratch:
