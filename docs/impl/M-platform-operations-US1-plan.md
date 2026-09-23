@@ -109,7 +109,7 @@ Review: ✅ r3 — A3 clean (spec compliance + code quality), independent review
 - Produces for later tasks: the port-bound `docker-compose.yml` that Task 13 (DoD-0-1 exactness) and Task 18 (T24 `ss -ltn` — Task 18's own Interfaces/Steps run it explicitly) read.
 
 **Steps**
-- [ ] (Host, Docker only) Failing test: run
+- [x] (Host, Docker only) Failing test: run
   ```
   docker compose config --format json 2>/dev/null | jq -e '
     (.services.web.ports[0].host_ip == "127.0.0.1") and
@@ -118,10 +118,10 @@ Review: ✅ r3 — A3 clean (spec compliance + code quality), independent review
   '
   ```
   Expect: exits 1 / prints `false` or `null` today — `web.ports` and `api.ports` are `null` (no `host_ip` field to read), `minio.ports[0].host_ip` is absent (bound to all interfaces).
-- [ ] Apply the three edits above to `docker-compose.yml`.
-- [ ] (Host, Docker only) Re-run the same `jq -e` command from Step 1. Expect: exits 0 (all three `true`).
-- [ ] (Host, Docker only) Confirm `nginx` and the 4 internal-only services are unchanged: `docker compose config --format json | jq -e '.services.nginx.ports[0].host_ip == null and .services.postgres.ports == null and .services.redis.ports == null and .services.transcoder.ports == null'` — expect exits 0.
-- [ ] (Host, live stack, no GPU needed — postgres/redis/minio/api carry no GPU reservation) T4b — in-network reachability, second half of AC3, needs no compose change (already `expose`-only and reachable service-to-service); `api`'s image (`node:22-bookworm-slim`) has no `nc`/`curl` installed (verified: `apps/api/Dockerfile` runs no `apt-get`), so probe with Node's built-in `net` module instead of the ticket's literal `nc -z`:
+- [x] Apply the three edits above to `docker-compose.yml`.
+- [x] (Host, Docker only) Re-run the same `jq -e` command from Step 1. Expect: exits 0 (all three `true`).
+- [x] (Host, Docker only) Confirm `nginx` and the 4 internal-only services are unchanged: `docker compose config --format json | jq -e '.services.nginx.ports[0].host_ip == null and .services.postgres.ports == null and .services.redis.ports == null and .services.transcoder.ports == null'` — expect exits 0.
+- [x] (Host, live stack, no GPU needed — postgres/redis/minio/api carry no GPU reservation) T4b — in-network reachability, second half of AC3, needs no compose change (already `expose`-only and reachable service-to-service); `api`'s image (`node:22-bookworm-slim`) has no `nc`/`curl` installed (verified: `apps/api/Dockerfile` runs no `apt-get`), so probe with Node's built-in `net` module instead of the ticket's literal `nc -z`:
   ```
   docker compose up -d postgres redis minio api
   docker compose exec -T api node -e "
@@ -136,6 +136,9 @@ Review: ✅ r3 — A3 clean (spec compliance + code quality), independent review
   "
   ```
   Expect: exits 0. Record this substitution (Node `net` probe instead of `nc -z`, per design §2 AC3 row) in the PR's KB-feedback notes — it is informational, not one of D1/D2/OPEN(BA)-1..5.
+
+Review: ✅ r2 — A3 clean (spec compliance + code quality), independent reviewer, 2 rounds. Commit `bff9696` unaltered throughout. T4b run api-independently (probe from a container on `myflix_default`): redis 6379, postgres 5432, minio 9000 all reachable.
+
 
 ## Task 3 — `docker-compose.yml`: rename 3 named volumes (AC12)
 
