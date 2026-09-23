@@ -296,10 +296,13 @@ Review: ✅ r2 — A3 clean (spec compliance + code quality), independent review
 - Produces for later tasks: nothing consumed elsewhere; this is a terminal artifact for T8/AC7.
 
 **Steps**
-- [ ] (Host, no Docker needed) Failing test: `test -f docs/decisions/phase0-ffmpeg-license.md && grep -q 'project-charter §1' docs/decisions/phase0-ffmpeg-license.md`. Expect: fails (file does not exist).
-- [ ] Create `docs/decisions/phase0-ffmpeg-license.md` with: a title, the 2026-09-22 decision date, the "accept GPL and nonfree" decision, and both citations above (verbatim quotes, not paraphrased, per this ticket's own citation discipline).
-- [ ] Re-run Step 1's command. Expect: passes.
+- [x] (Host, no Docker needed) Failing test: `test -f docs/decisions/phase0-ffmpeg-license.md && grep -q 'project-charter §1' docs/decisions/phase0-ffmpeg-license.md`. Expect: fails (file does not exist).
+- [x] Create `docs/decisions/phase0-ffmpeg-license.md` with: a title, the 2026-09-22 decision date, the "accept GPL and nonfree" decision, and both citations above (verbatim quotes, not paraphrased, per this ticket's own citation discipline).
+- [x] Re-run Step 1's command. Expect: passes.
 - [ ] (GPU host) T7/T8 — AC6/AC7's own runtime confirmation (build-time only; reading `ffmpeg -version`'s compiled-in config string needs no GPU, only a built image — design §6 marks this row "No"): `docker compose exec transcoder ffmpeg -version` — expect the `configuration:` line contains all 4 of `--enable-nvenc`, `--enable-cuda-nvcc`, `--enable-gpl`, `--enable-nonfree`, and the reported version is `n6.1` or newer. `docker compose exec transcoder ffmpeg -version | grep -oE 'enable-gpl|enable-nonfree' | wc -l` → expect `2`.
+
+Review: ✅ r2 — A3 clean (spec compliance + code quality), independent reviewer, 2 rounds. Both KB citations verified byte-exact against the pinned `v1.0.1 @ 55ca74d` sections, NFC-consistent. **AC6 runtime step left unticked and unrun** — needs `docker compose exec transcoder ffmpeg -version` on a host with the stack up; no static inspection can close it. Static substitute covers all four configure flags plus `ARG FFMPEG_TAG=n6.1`.
+
 
 ## Task 9 — `apps/web`: Pino JSON logging on every request (AC18)
 
