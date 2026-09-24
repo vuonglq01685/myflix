@@ -4,8 +4,13 @@
 # and reset expectations before using it.
 FROM node:22-bookworm-slim
 
+# redis-tools is here only for redis-cli, which docker-compose.yml's transcoder
+# healthcheck runs to prove the queue dependency (AC14 Q2). That healthcheck is
+# inherited by this image via infra/compose/docker-compose.cpu.yml, which swaps
+# the Dockerfile but not the healthcheck — without redis-cli here the CPU-fallback
+# transcoder can never become healthy and `up -d --wait` times out.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ffmpeg ca-certificates \
+      ffmpeg ca-certificates redis-tools \
  && npm install -g pnpm@10 \
  && rm -rf /var/lib/apt/lists/*
 
