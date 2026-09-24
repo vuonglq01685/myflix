@@ -54,6 +54,12 @@ services:
     ports: ["127.0.0.1:3000:3000"]
     depends_on:
       api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/', {redirect:'manual'}).then(r=>process.exit(r.status<400?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   api:
     build:
@@ -106,6 +112,12 @@ services:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
       minio:    { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "redis", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     deploy:
       resources:
         reservations:
