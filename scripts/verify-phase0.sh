@@ -13,6 +13,15 @@ FRESH=0
 [ $# -gt 1 ] && { echo "usage: $0 [--fresh]" >&2; exit 2; }
 
 if [ "$FRESH" -eq 1 ]; then
+  project=$(docker compose config 2>/dev/null | awk -F': ' '/^name:/{print $2; exit}')
+  echo "--fresh will run: docker compose down -v (project: ${project:-unknown})" >&2
+  docker compose config --volumes 2>/dev/null | while IFS= read -r vol; do
+    echo "  - ${project}_$vol"
+  done >&2
+  if [ "${MYFLIX_ALLOW_WIPE:-}" != "1" ]; then
+    echo "Refusing to run --fresh: set MYFLIX_ALLOW_WIPE=1 to confirm wiping the volumes above." >&2
+    exit 2
+  fi
   docker compose down -v
   docker compose up -d --wait --wait-timeout 180 || { echo "--fresh bring-up failed"; exit 1; }
 fi
