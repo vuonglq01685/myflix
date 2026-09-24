@@ -2415,17 +2415,30 @@ Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independ
 
 **Steps**
 
-- [ ] Red: run the Check at the current HEAD. Expect a non-zero BAD count, with `api` near 15 and `web` near 8. Paste the BAD lines.
-- [ ] Investigate and record the chosen approach and its reasoning in the report.
-- [ ] Implement within **Files**.
-- [ ] Green: rebuild (`up -d --build --wait`), then run the Check again. Expect **0** BAD lines for all three services. Also confirm the following:
+- [x] Red: run the Check at the current HEAD. Expect a non-zero BAD count, with `api` near 15 and `web` near 8. Paste the BAD lines.
+- [x] Investigate and record the chosen approach and its reasoning in the report.
+- [x] Implement within **Files**.
+- [x] Green: rebuild (`up -d --build --wait`), then run the Check again. Expect **0** BAD lines for all three services. Also confirm the following:
   - `docker compose exec -T api pnpm --filter @myflix/db exec prisma migrate status` reports `Database schema is up to date!`, which shows migrations still applied at start (AC11).
   - `docker compose ps` shows 7 healthy services.
   - A Pino request line is still present for both `api` and `web`.
-- [ ] Negative path: show that a failing migration still stops `api` from starting and is visible as JSON. For example, point `DATABASE_URL` at a
+- [x] Negative path: show that a failing migration still stops `api` from starting and is visible as JSON. For example, point `DATABASE_URL` at a
       non-existent database for one `docker compose run --rm -T api`: expect a non-zero exit and at least one JSON error line. Paste it.
-- [ ] `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh` on the same stack still prints `passed 4, failed 0`, exit 0.
-- [ ] `pnpm -r test` and `npx eslint . && npx prettier --check .` both exit 0. Tear down with `docker compose down -v --remove-orphans` for project `t31` only.
+- [x] `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh` on the same stack still prints `passed 4, failed 0`, exit 0.
+- [x] `pnpm -r test` and `npx eslint . && npx prettier --check .` both exit 0. Tear down with `docker compose down -v --remove-orphans` for project `t31` only.
+
+Review: ✅ r3 — A3 clean on both verdicts (spec compliance PASS + code quality PASS), independent opus reviewer. Commits `165cb27`, `1feee1d` and `0caa8fa`. Non-JSON lines went from api 20–22 / web 8 to **0/0/0** for api, web and transcoder on a fresh stack. Migrations still apply at start. A bad `DATABASE_URL` exits 1 with a single `level:50` JSON line. 7 services stay healthy, and `verify-phase0` gives `passed 4, failed 0`.
+
+Round 1 found a BLOCKER: every `/_next/static` asset returned 404, so pages rendered without CSS or JS, and none of the healthcheck, Check or verify-phase0 caught it. The fix copies `.next/static` into the standalone tree, and a headless render now comes out styled.
+
+Round 2 found a BLOCKER: stderr was truncated when the child exited. The fix uses the child's blocking stdio via `--import` `setBlocking(true)`, and the relay now delivers 2001/2001 lines. It held under a load of 5000 requests (all JSON, p99 90 ms).
+
+NOTEs for PR `## Findings`:
+
+- The blocking-stdio flag relies on Node's private `_handle.setBlocking` behind `?.`, so a future Node change would silently re-open the truncation. It is pinned to `node:22-bookworm-slim`.
+- The `eslint-disable` in both `start.js` files should become an `eslint.config.mjs` per-file override later.
+- The healthchecks and verify-phase0 check status codes only, so a static-asset probe would have caught round 1's regression.
+- Two stale comments remain in `apps/web/scripts/start.js` (NITS).
 
 ## Task 30 — Records: correct stale status notes, OPEN(BA) labels and decision/README text (A4 r3 S-R3-1, S-R3-2, S-R3-4, N-R3-1, N-R3-2)
 
