@@ -19,13 +19,15 @@ fi
 
 item_result="PASS"
 item_detail=""
+out=$(mktemp)
+trap 'rm -f "$out"' EXIT
 subcheck() {
   local label="$1"; shift
-  if "$@" >/tmp/phase0.out 2>&1; then
+  if "$@" >"$out" 2>&1; then
     : # sub-check passed, nothing printed
   else
     item_result="FAIL"
-    item_detail="$item_detail$(printf '\n  %s:\n' "$label"; sed 's/^/    /' /tmp/phase0.out | tail -5)"
+    item_detail="$item_detail$(printf '\n  %s:\n' "$label"; sed 's/^/    /' "$out" | tail -5)"
   fi
 }
 item_done() {
@@ -43,9 +45,18 @@ item_done() {
 }
 
 echo "DoD-0-1  all services healthy"
-subcheck "compose services running" docker compose ps --status running --quiet
 subcheck "api    /health"  docker compose exec -T api node -e "fetch('http://localhost:4000/api/health').then(r=>{if(!r.ok)process.exit(1)})"
 subcheck "nginx  /nginx-health" curl -fsS -o /dev/null http://localhost/nginx-health
+subcheck "minio-init exited(0)" bash -c '
+  state=$(docker compose ps -a --format "{{.Service}} {{.State}} {{.ExitCode}}" | awk "\$1==\"minio-init\"{print \$2}")
+  code=$(docker compose ps -a --format "{{.Service}} {{.State}} {{.ExitCode}}" | awk "\$1==\"minio-init\"{print \$3}")
+  [ "$state" = "exited" ] && [ "$code" = "0" ]
+'
+subcheck "7 services healthy" bash -c '
+  n=$(docker compose ps --format "{{.Service}} {{.Health}}" | grep -c " healthy$")
+  echo "healthy: $n/7"
+  [ "$n" -eq 7 ]
+'
 item_done "DoD-0-1"
 
 echo "DoD-0-2  NVENC present in the transcoder container  [BLOCKING]"
