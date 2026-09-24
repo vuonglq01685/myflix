@@ -1578,12 +1578,14 @@ Dev decisions (binding, 2026-09-24) closing the A4 findings below. Each decision
 
 **Steps**
 
-- [ ] (Host, Docker only, no GPU needed) Failing test: `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml config --format json | jq -e '.services.transcoder.deploy.resources.reservations == {}'`. Expect: exits 1 today — the merged reservation still carries the nvidia device block (`[{"capabilities":["gpu","video"],"driver":"nvidia","count":1}]`), not `{}`.
-- [ ] Replace `devices: []` with `devices: !reset []` in `infra/compose/docker-compose.cpu.yml`.
-- [ ] Re-run Step 1's command. Expect: exits 0.
-- [ ] (Host, Docker only, no GPU needed) Confirm the plain GPU config is unaffected: `docker compose config --format json | jq -e '.services.transcoder.deploy.resources.reservations.devices[0].driver == "nvidia"'`. Expect: exits 0.
-- [ ] Add the one-line clarification above to `README.md`, with a blank line between the closing `make up-cpu` code fence (line 71) and the new paragraph — i.e. fence / blank / new paragraph / (existing blank at old line 72) / table. Do **not** place the new paragraph directly under the fence with no blank line.
-- [ ] (Host, no Docker needed) `npx prettier --check infra/compose/docker-compose.cpu.yml README.md`. Expect: exits 0.
+- [x] (Host, Docker only, no GPU needed) Failing test: `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml config --format json | jq -e '.services.transcoder.deploy.resources.reservations == {}'`. Expect: exits 1 today — the merged reservation still carries the nvidia device block (`[{"capabilities":["gpu","video"],"driver":"nvidia","count":1}]`), not `{}`.
+- [x] Replace `devices: []` with `devices: !reset []` in `infra/compose/docker-compose.cpu.yml`.
+- [x] Re-run Step 1's command. Expect: exits 0.
+- [x] (Host, Docker only, no GPU needed) Confirm the plain GPU config is unaffected: `docker compose config --format json | jq -e '.services.transcoder.deploy.resources.reservations.devices[0].driver == "nvidia"'`. Expect: exits 0.
+- [x] Add the one-line clarification above to `README.md`, with a blank line between the closing `make up-cpu` code fence (line 71) and the new paragraph — i.e. fence / blank / new paragraph / (existing blank at old line 72) / table. Do **not** place the new paragraph directly under the fence with no blank line.
+- [x] (Host, no Docker needed) `npx prettier --check infra/compose/docker-compose.cpu.yml README.md`. Expect: exits 0.
+
+Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independent opus reviewer. Commit `633b6f3`. The reviewer re-ran the red check on `2fbf53a` (`false`, exit 1, nvidia reservation merged) and the green check at HEAD (`{"reservations":{}}`); the GPU config still reserves `nvidia`. NOTEs for PR `## Findings`: the CPU path still inherits `NVIDIA_*` env and `TRANSCODE_PRESET=p5` from the base file (harmless under the default runtime); `!reset` needs Compose ≥ v2.24, and README states no minimum; a live GPU-less start (AC23) is Task 25's job.
 
 ## Task 20 — Fix the manifest-copy defect in all three Dockerfiles: add `packages/storage` to the copy block AND to the build chain (routed from A4's "manifest-copy defect is in THREE Dockerfiles" finding)
 
