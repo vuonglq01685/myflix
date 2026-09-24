@@ -69,12 +69,12 @@ else
 fi
 item_done "DoD-0-2"
 
-echo "DoD-0-3  encode a 30s clip with h264_nvenc"
 if [ "${TRANSCODE_ENCODER:-h264_nvenc}" = "h264_nvenc" ]; then
   ENC="h264_nvenc"; PRESET="p5"
 else
   ENC="libx264"; PRESET="veryfast"
 fi
+echo "DoD-0-3  encode a 30s clip with $ENC"
 subcheck "smoke encode + duration bound" docker compose exec -T transcoder sh -c "
   ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=30 -t 30 \
      -c:v $ENC -preset $PRESET -b:v 3000k -f mp4 /scratch/phase0.mp4 && \
