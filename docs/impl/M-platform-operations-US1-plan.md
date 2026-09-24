@@ -1152,11 +1152,82 @@ on every one of nine scenarios, with the script running to completion each time.
 - Produces for later tasks: nothing; terminal artifact for AC20/AC27/T29.
 
 **Steps**
-- [ ] (Host, no Docker needed) Failing test: `grep -q '^## Phase 0 setup$' README.md`. Expect: fails.
-- [ ] Insert the section above (with the two `RELEASE.*` values read from `docker-compose.yml`'s `minio`/`minio-init` `image:` lines — `grep -n 'image:.*minio/minio\|image:.*minio/mc' docker-compose.yml`, per Task 5 and the round 2 finding above, not a fixed `:147,165` — substituted in — not the placeholder angle-bracket text) at the cited insertion point.
-- [ ] Re-run Step 1's grep. Expect: passes.
-- [ ] Confirm all 8 dependency rows and the ownership rule are present: `for s in "550.54.14" "551.76" "1.14.0" "24.x" "6.1+" "20 LTS" "PostgreSQL" "Redis" "RELEASE." "Project Owner" "same commit"; do grep -q "$s" README.md || echo "MISSING: $s"; done` — expect no `MISSING:` output.
-- [ ] T29 (ticket `:301`): read the rendered section once more end to end; confirm it is visibly distinct from the existing `## Bring-up` (line 31, unchanged) and `## Next step` (line 112, unchanged) sections, not a merge of the three.
+- [x] (Host, no Docker needed) Failing test: `grep -q '^## Phase 0 setup$' README.md`. Expect: fails.
+- [x] Insert the section above (with the two `RELEASE.*` values read from `docker-compose.yml`'s `minio`/`minio-init` `image:` lines — `grep -n 'image:.*minio/minio\|image:.*minio/mc' docker-compose.yml`, per Task 5 and the round 2 finding above, not a fixed `:147,165` — substituted in — not the placeholder angle-bracket text) at the cited insertion point.
+- [x] Re-run Step 1's grep. Expect: passes.
+- [x] Confirm all 8 dependency rows and the ownership rule are present: `for s in "550.54.14" "551.76" "1.14.0" "24.x" "6.1+" "20 LTS" "PostgreSQL" "Redis" "RELEASE." "Project Owner" "same commit"; do grep -q "$s" README.md || echo "MISSING: $s"; done` — expect no `MISSING:` output.
+- [x] T29 (ticket `:301`): read the rendered section once more end to end; confirm it is visibly distinct from the existing `## Bring-up` (line 31, unchanged) and `## Next step` (line 112, unchanged) sections, not a merge of the three.
+
+
+Review: ✅ r3 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 3 rounds.
+Commits `a160917` (the insertion), `2681723` (r1 fix), `61ae1d1` (r2 fix). **Two of the three rounds
+were triggered by the orchestrator's own fixes, not the implementer's work** — recorded because the
+pattern matters more than any one sentence. All of the block's mechanical gates hold at HEAD: the 11
+required strings present, exactly one `^## Phase 0 setup$` heading (T29), zero matches for
+`Task [0-9]|<tag>|<RELEASE`, both `RELEASE.*` tags matching `docker-compose.yml`'s `minio` and
+`minio-init` `image:` lines found by content, all 8 dependency rows, and the AC27 ownership rule
+verbatim. Only `README.md` was ever touched.
+
+  ↳ **Round 1's BLOCKER — the block's own dictated sentence was false.** It told the reader to expect
+  "WAIVED on DoD-0-2 only, if running the CPU-fallback branch"; that branch yields **FAIL** on DoD-0-2
+  *and* DoD-0-3. `scripts/verify-phase0.sh` reads `TRANSCODE_ENCODER` from its **own shell** and
+  **never reads `.env`** (a search for `.env`, `set -a`, `source ` returns nothing), `Makefile`'s
+  `verify:` is a bare invocation while its `test-e2e:` does `set -a; . ./.env; set +a`, and
+  `infra/compose/docker-compose.cpu.yml` sets the variable under `transcoder.environment` —
+  container-scoped. So a reader following `## Bring-up`'s `make up-cpu` then `make verify` got two
+  FAILs while following instructions exactly. **Fixed against the code, deviating from the block's
+  verbatim fence deliberately** — r3 endorsed that call on two grounds: the block itself already
+  orders plan-literal values overridden where the tree disagrees, and this artefact *is* the
+  instruction, so recording a contradiction while shipping it is not a neutral option.
+
+  ↳ **Round 2's BLOCKER — the orchestrator's round-1 fix shipped its own false claim, same class, same
+  dangerous direction.** It said a mismatched `MINIO_ROOT_PASSWORD`/`S3_SECRET_KEY` pair fails loudly
+  (`mc ready local` failing, stack never healthy). It fails **silently**. `S3_SECRET_KEY` lives only in
+  the `x-app-env` anchor, merged into `web`/`api`/`transcoder` and **not** into `minio` or
+  `minio-init`; `scripts/minio-init.sh:5` aliases with the same root credentials the server was given,
+  so it cannot disagree; **no healthcheck touches S3** (`api`'s probes only `SELECT 1` and
+  `redis.ping()`); and DoD-0-4 runs `minio-init` under root credentials too. r3 traced **all five DoD
+  items** and confirmed every one goes green under a mismatched pair. So the old text told the reader a
+  green run ruled this out — one paragraph after the section correctly warns that a green exit does not
+  prove NVENC. Fixed, and r3 traced all seven sub-claims of the replacement to the artefacts; it judged
+  the new wording if anything **understated**, since `mc anonymous set none` plus nginx holding no S3
+  credential means presigned playback breaks too.
+
+  ↳ **OWED TO HANDOVER — A3 r3 SUGGESTED, deliberately not applied.** Round 3 is the last round the
+  phase allows, so this goes to the Dev by rule rather than triggering a fourth unreviewed edit to a
+  paragraph that has already shipped two errors of this exact class. The reviewer's verified
+  replacement, to apply mechanically: replace ``​`api`'s `/health` returns 503, so `api` never turns
+  healthy`` with ``​`api` fails at boot — Prisma's `$connect()` throws `P1000` before it listens — so it
+  never turns healthy``. Why: `prisma.service.ts:6-8` `await this.$connect()` in `onModuleInit`
+  validates credentials eagerly and throws `P1000`; `main.ts:10`'s `NestFactory.create` propagates that
+  **before** `app.listen()` at `:21`; `:24`'s `void bootstrap()` leaves it unhandled so the process
+  exits non-zero; `api` has no `restart:` policy so the container stays exited; and the healthcheck
+  therefore fails on **connection refused**, never seeing a 503. **This error runs in the safe
+  direction** — the operator gets a louder, more diagnostic failure than promised, and everything
+  downstream is correct. Fold in the NITS while editing: the route is `/api/health`, not `/health`
+  (`main.ts:14` sets `setGlobalPrefix('api')`). Full text and evidence in `task-17-report.md`.
+
+  ↳ **Carried to handover, verified and recorded, none blocking:** `up --wait` **can exit 1 on a
+  healthy stack** — measured by the r2 reviewer on this host's compose v5.5.1, a one-shot that has
+  already exited when `--wait` polls makes `up --wait` return 1 while printing `exited (0)`; it matters
+  because `scripts/verify-phase0.sh:17` wraps that exact command in
+  `|| { echo "--fresh bring-up failed"; exit 1; }`, so the race can make `--fresh` report failure on a
+  stack that is fine (`minio-init` issues 11 `mc` calls, so it is a race, not a certainty). The
+  clean-machine precondition still has **no command** — `make clean` is `down -v`, covering the volumes
+  but not the images. **`--fresh` remains undocumented**: AC20 is the dependency rows and AC27 the
+  ownership rule, neither reaching verification modes, and this block contains zero occurrences of
+  "fresh", so declining was right — but Task 18's block is "No file changes", so it *proves* `--fresh`
+  works while adding no `Makefile` target, `package.json` script or README line, leaving the flag
+  reachable only by reading the script. And the **NVIDIA driver/toolkit floors have no in-tree source**
+  — their only citation is the charter, outside this repo, while the operative constraint is the pinned
+  `nvidia/cuda:12.4.1` base; worth one Project Owner confirmation that the floors match it.
+
+  ↳ **Prettier deferred to Task 17b, correctly.** `README.md` was **already** red before Task 17 (the
+  `## Bring-up` URL table's unpadded pipes). Task 17 added exactly two regions — the new dependency
+  table's unpadded pipes and one missing blank line before the numbered list — and r3 measured the
+  changed-lines-vs-Prettier figure **invariant across all three commits**, so neither fix moved it. The
+  new table matches the file's dominant unpadded style, so reformatting only it would leave the file
+  both internally inconsistent and still red.
 
 ## Task 17b — Repo-wide Prettier reformat (formatting only, no behavior change)
 
