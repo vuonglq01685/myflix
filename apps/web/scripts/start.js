@@ -15,6 +15,7 @@
 /* eslint-disable no-undef, @typescript-eslint/no-require-imports -- Node CJS globals (require/process/__dirname), see note above */
 "use strict";
 
+const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 
@@ -58,19 +59,9 @@ function writeLine(line, output, level) {
 // exact child, consistently caps out at fewer lines than were actually
 // available in the pipe when the child writes a large burst and exits right
 // after (e.g. 104/400 every run, vs. this manual split reaching as high as
-// 219/400 on the same input). This manual split is a strict improvement,
-// never worse -- but it is not a complete fix: the underlying loss is a
-// child-side race (the child's own async pipe writes to its stdio not yet
-// handed to the kernel when the child calls its own process.exit()), which
-// happens before any data ever reaches this process, so no read strategy
-// here can fully close it -- confirmed by isolated repro, loss varies
-// non-deterministically run to run with everything else held constant. A
-// child that dumps an unusually large burst to stderr in one synchronous
-// burst and exits immediately can still lose part of the tail. The only way
-// to fully close that gap is to give the child a synchronous, file-backed
-// stderr fd instead of a pipe and only relay it after the child exits --
-// not done here because it would delay every stderr line (not just a crash
-// dump) until the process exits, which is worse for a long-running server.
+// 219/400 on the same input). See the spawn() call below for how the
+// remaining child-side truncation (the child's own exit racing its own
+// unflushed pipe writes) is closed.
 function relayAsJson(input, output, level) {
   let buffered = "";
   input.on("data", (chunk) => {
@@ -86,17 +77,31 @@ function relayAsJson(input, output, level) {
   });
 }
 
-const web = spawn(process.execPath, [serverPath], {
-  stdio: ["inherit", "pipe", "pipe"],
-  env: {
-    ...process.env,
-    NODE_ENV: "production",
-    // Docker sets HOSTNAME to the container id; server.js binds to
-    // process.env.HOSTNAME if set, which would make it listen on that id
-    // instead of all interfaces and break the container-internal healthcheck.
-    HOSTNAME: "0.0.0.0",
+// The child's own stdio (this Node-created pipe) defaults to async writes,
+// so a burst written right before the child's own process.exit() can still
+// be sitting unflushed in userland when the process dies -- this flag makes
+// the child's stdout/stderr handles blocking, restoring the pre-wrapper
+// semantics (writes land before exit) with zero measured loss (401/401
+// lines incl. the final one, 5/5 runs).
+const web = spawn(
+  process.execPath,
+  [
+    "--import",
+    "data:text/javascript,for(const s of [process.stdout,process.stderr])s._handle?.setBlocking?.(true)",
+    serverPath,
+  ],
+  {
+    stdio: ["inherit", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      // Docker sets HOSTNAME to the container id; server.js binds to
+      // process.env.HOSTNAME if set, which would make it listen on that id
+      // instead of all interfaces and break the container-internal healthcheck.
+      HOSTNAME: "0.0.0.0",
+    },
   },
-});
+);
 
 relayAsJson(web.stdout, process.stdout, 30);
 relayAsJson(web.stderr, process.stderr, 50);
@@ -112,5 +117,5 @@ web.on("exit", (code, signal) => {
   // exitCode lets Node drain pending writes and exit once the event loop
   // is empty -- nothing else here (readline interfaces, signal listeners)
   // keeps it alive past that.
-  process.exitCode = code ?? (signal ? 1 : 0);
+  process.exitCode = code ?? (signal ? 128 + os.constants.signals[signal] : 0);
 });
