@@ -80,6 +80,7 @@ subcheck "smoke encode + duration bound" docker compose exec -T transcoder sh -c
      -c:v $ENC -preset $PRESET -b:v 3000k -f mp4 /scratch/phase0.mp4 && \
    ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /scratch/phase0.mp4 | grep -q h264 && \
    dur=\$(ffprobe -v error -show_entries format=duration -of csv=p=0 /scratch/phase0.mp4) && \
+   echo \"duration: \$dur\" && \
    awk -v d=\"\$dur\" 'BEGIN{exit !(d>=29.5 && d<=30.5)}'
 "
 item_done "DoD-0-3"
