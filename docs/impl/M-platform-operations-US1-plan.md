@@ -571,6 +571,21 @@ plan-quality finding.
 
 ## Task 10 — CPU-fallback ladder cap + encoder-aware FFmpeg args (AC21) — **conditional, dispatched with an explicit gate value**
 
+> **STATUS: NOT RUN — its governing input does not exist.** This task is conditional on a gate value,
+> the two words `TRIGGERED` or `NOT TRIGGERED`, which the Interfaces below define as a **Project Owner
+> decision stated at dispatch**, explicitly "not something derived from reading another task". **No gate
+> value was supplied**, so the task was never dispatched. It was not guessed, not derived from any other
+> task's result, and the TRIGGERED branch was not speculatively implemented — which is what this block
+> requires. **AC21 therefore reaches handover NOT VERIFIED**, and this is a Dev/Project Owner decision,
+> not a blocked dependency: the gate depends on AC4/AC5/AC8's real outcome on a GPU host, which is in
+> turn blocked by the two deps-stage defects recorded under Task 4's Steps.
+>
+> Note the gate reaches beyond this task: one step each in **Task 12** and **Task 14** is also
+> Task-10-gated, and both were left unrun for this same reason. Everything else in those two tasks is
+> complete and reviewed. Task 10's own changes are pure TypeScript with unit tests
+> (`packages/shared/src/media/ladder.ts`, `apps/transcoder/src/ffmpeg/args.ts` and their specs), so if
+> the gate comes back `TRIGGERED` the work is runnable without a GPU or a live stack.
+
 **Files**
 
 - Modify: `packages/shared/src/media/ladder.ts`
@@ -1154,6 +1169,15 @@ immune to the entire class (anchor bugs, duplicates, extra-line inflation):
 Not requested and not blocking — recorded as the honest answer to what a dedup would have bought.
 
 ## Task 16 — AC10: anonymous-GET-403 probe substitution
+
+> **STATUS: BLOCKED — not run, and not merely unverified.** The whole task is blocked, not just its
+> verification. Its two probe commands need a live stack _and_ specifically
+> `docker compose run --rm -T api`, which this block itself calls load-bearing: port 9000 is never
+> published to the host, so only a container on the compose network can reach MinIO, and `run --rm`
+> (not `exec`) is what satisfies AC10's temporary-container clause. `api`'s image cannot be built — see
+> the two deps-stage defects recorded under Task 4's Steps. Substituting a different image would deviate
+> from approved text, so nothing was run. **AC10 therefore reaches handover NOT VERIFIED.** Unblocked by
+> the same `/dev-plan` task that owns `apps/api/Dockerfile`; this one needs only the `api` half.
 
 **Files**
 
