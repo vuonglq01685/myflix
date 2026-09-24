@@ -97,7 +97,7 @@ subcheck "exactly 4 buckets" bash -c '
 item_done "DoD-0-4"
 
 echo "DoD-0-5  migrations applied"
-subcheck "prisma migrate status" docker compose exec -T api npx prisma migrate status --schema packages/db/prisma/schema.prisma
+subcheck "prisma migrate status" docker compose exec -T api pnpm --filter @myflix/db exec prisma migrate status
 item_done "DoD-0-5"
 
 echo
