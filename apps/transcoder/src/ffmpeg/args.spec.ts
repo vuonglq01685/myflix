@@ -62,6 +62,35 @@ describe("buildLadderArgs", () => {
     expect(map).toBe("v:0,a:0,name:720p v:1,a:1,name:480p v:2,a:2,name:360p");
     expect(map).not.toContain("1080p");
   });
+
+  it("omits -hwaccel and uses a CPU scale filter for a non-NVENC encoder", () => {
+    const a = buildLadderArgs({
+      sourcePath: "/in.mkv",
+      outputDir: "/out",
+      probe,
+      encoder: "libx264",
+    });
+    expect(a).not.toContain("-hwaccel");
+    expect(a.join(" ")).not.toContain("scale_cuda");
+  });
+
+  it("still emits -hwaccel cuda for the default h264_nvenc encoder", () => {
+    const a = args();
+    expect(a).toContain("-hwaccel");
+  });
+
+  it("AC21: caps the ladder to 720p/480p for a non-NVENC encoder on a 1080p source", () => {
+    // Proves the limitTo wiring actually reaches buildLadderArgs's real output,
+    // not just buildLadder's own unit test above.
+    const a = buildLadderArgs({
+      sourcePath: "/in.mkv",
+      outputDir: "/out",
+      probe,
+      encoder: "libx264",
+    });
+    const map = a[a.indexOf("-var_stream_map") + 1]!;
+    expect(map).toBe("v:0,a:0,name:720p v:1,a:1,name:480p");
+  });
 });
 
 describe("buildPreviewArgs", () => {
@@ -76,6 +105,17 @@ describe("buildPreviewArgs", () => {
     expect(a[a.indexOf("-t") + 1]).toBe("25");
     expect(a).toContain("-an");
     expect(a[a.indexOf("-movflags") + 1]).toBe("+faststart");
+  });
+
+  it("drops -hwaccel and uses plain scale for libx264", () => {
+    const a = buildPreviewArgs({
+      sourcePath: "/in.mkv",
+      outputPath: "/out.mp4",
+      durationSec: 7200,
+      encoder: "libx264",
+    });
+    expect(a).not.toContain("-hwaccel");
+    expect(a[a.indexOf("-vf") + 1]).toBe("scale=854:480");
   });
 });
 

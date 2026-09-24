@@ -42,6 +42,14 @@ test("portrait source swaps the constrained axis and stays even", () => {
   }
 });
 
+test("AC21 CPU branch caps the ladder to exactly 720p and 480p", () => {
+  const names = buildLadder(
+    { width: 1920, height: 1080 },
+    { limitTo: ["720p", "480p"] },
+  ).map((r) => r.name);
+  assert.deepStrictEqual(names, ["720p", "480p"]);
+});
+
 // ── Keyframe alignment ──────────────────────────────────────────────────────
 test("GOP equals frame rate x 4 for every reference rate", () => {
   assert.equal(gopForFrameRate(23.976), 96);

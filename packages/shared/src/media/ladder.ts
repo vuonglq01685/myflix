@@ -74,13 +74,29 @@ export interface SourceDimensions {
  * the rung, so a 1080x1920 clip earns the full ladder rather than being
  * judged as "360p tall".
  */
-export function buildLadder(source: SourceDimensions): Rung[] {
+export function buildLadder(
+  source: SourceDimensions,
+  options?: { limitTo?: readonly string[] },
+): Rung[] {
   const longEdge = Math.max(source.width, source.height);
   const portrait = source.height > source.width;
 
   const rungs = LADDER.filter((r) => r.width <= longEdge);
   // A source smaller than the lowest rung still gets exactly one rendition.
-  const selected = rungs.length > 0 ? rungs : [LADDER[LADDER.length - 1]!];
+  const preFilterSelected =
+    rungs.length > 0 ? rungs : [LADDER[LADDER.length - 1]!];
+
+  const limitTo = options?.limitTo;
+  const limited = limitTo
+    ? preFilterSelected.filter((r) => limitTo.includes(r.name))
+    : preFilterSelected;
+  // limitTo can empty the array (e.g. a 480p source with limitTo ['720p',
+  // '480p'] already dropped 720p via the longEdge rule) — fall back to the
+  // last pre-filter rung, mirroring the "at least one rendition" rule above.
+  const selected =
+    limited.length > 0
+      ? limited
+      : [preFilterSelected[preFilterSelected.length - 1]!];
 
   if (!portrait) return selected.map((r) => ({ ...r }));
 
@@ -102,4 +118,12 @@ export function scaleFilter(rung: Rung, portrait: boolean): string {
   return portrait
     ? `scale_cuda=w=${rung.width}:h=-2:format=yuv420p`
     : `scale_cuda=w=-2:h=${rung.height}:format=yuv420p`;
+}
+
+/** CPU counterpart of `scaleFilter` for the libx264 fallback path (AC21) —
+ *  no `scale_cuda`/CUDA pixel-format token, since libx264 doesn't need it. */
+export function scaleFilterCpu(rung: Rung, portrait: boolean): string {
+  return portrait
+    ? `scale=w=${rung.width}:h=-2`
+    : `scale=w=-2:h=${rung.height}`;
 }

@@ -4,6 +4,7 @@ import {
   buildLadder,
   gopForFrameRate,
   scaleFilter,
+  scaleFilterCpu,
   type Rung,
 } from "@myflix/shared";
 
@@ -39,28 +40,40 @@ export function buildLadderArgs(options: LadderJobOptions): string[] {
   const preset = options.preset ?? "p5";
   const segmentSeconds = options.segmentSeconds ?? 4;
 
-  const rungs = buildLadder(probe);
+  // NVENC-only flags (-hwaccel cuda, scale_cuda) don't apply to a CPU
+  // encoder like libx264, and the CPU fallback ladder is capped to 720p/480p
+  // (AC21) rather than the full source-driven ladder.
+  const useCuda = encoder.includes("nvenc");
+  const rungs = buildLadder(
+    probe,
+    useCuda ? undefined : { limitTo: ["720p", "480p"] as const },
+  );
   const portrait = probe.height > probe.width;
   const gop = gopForFrameRate(probe.frameRate, segmentSeconds);
   const labels = rungs.map((_, i) => `v${i}`);
+  const scale = useCuda ? scaleFilter : scaleFilterCpu;
 
   const filter = [
     `[0:v]split=${rungs.length}${labels.map((l) => `[s${l}]`).join("")}`,
     ...rungs.map(
-      (rung, i) =>
-        `[s${labels[i]}]${scaleFilter(rung, portrait)}[${labels[i]}]`,
+      (rung, i) => `[s${labels[i]}]${scale(rung, portrait)}[${labels[i]}]`,
     ),
   ].join(";");
 
   const args = [
     "-y",
     "-hide_banner",
-    "-hwaccel",
-    "cuda",
-    // Keeps decoded frames in VRAM. Omitting this silently copies every frame
-    // back to system memory and throws away the whole speed advantage.
-    "-hwaccel_output_format",
-    "cuda",
+    ...(useCuda
+      ? [
+          "-hwaccel",
+          "cuda",
+          // Keeps decoded frames in VRAM. Omitting this silently copies every
+          // frame back to system memory and throws away the whole speed
+          // advantage.
+          "-hwaccel_output_format",
+          "cuda",
+        ]
+      : []),
     "-i",
     sourcePath,
     "-filter_complex",
@@ -146,14 +159,13 @@ export function buildPreviewArgs(params: {
   durationSec: number;
   encoder?: string;
 }): string[] {
+  const encoder = params.encoder ?? "h264_nvenc";
+  const useCuda = encoder.includes("nvenc");
   const startSec = Math.max(0, Math.floor(params.durationSec * 0.2));
   return [
     "-y",
     "-hide_banner",
-    "-hwaccel",
-    "cuda",
-    "-hwaccel_output_format",
-    "cuda",
+    ...(useCuda ? ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"] : []),
     // -ss BEFORE -i seeks by keyframe instead of decoding from zero.
     "-ss",
     String(startSec),
@@ -162,9 +174,9 @@ export function buildPreviewArgs(params: {
     "-t",
     "25",
     "-vf",
-    "scale_cuda=854:480",
+    useCuda ? "scale_cuda=854:480" : "scale=854:480",
     "-c:v",
-    params.encoder ?? "h264_nvenc",
+    encoder,
     "-preset",
     "p4",
     "-b:v",
