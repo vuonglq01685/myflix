@@ -1658,7 +1658,7 @@ Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independ
 
 **Steps**
 
-- [ ] (Host, no Docker/GPU needed — pure TypeScript unit tests) Failing test — add to `apps/transcoder/src/ffmpeg/args.spec.ts`, in the `describe("buildLadderArgs", ...)` block:
+- [x] (Host, no Docker/GPU needed — pure TypeScript unit tests) Failing test — add to `apps/transcoder/src/ffmpeg/args.spec.ts`, in the `describe("buildLadderArgs", ...)` block:
   ```ts
   it("omits NVENC-only rate-control flags and uses the libx264 preset for a non-NVENC encoder", () => {
     const a = buildLadderArgs({
@@ -1677,7 +1677,7 @@ Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independ
   });
   ```
   Run `pnpm --filter @myflix/transcoder test`. Expect: fails — today's `args.ts` still emits `-rc`, `-cq:v:0`, `-forced-idr`, and `-preset p5` unconditionally.
-- [ ] Add a regression test in the same `describe` block, proving the default path is untouched:
+- [x] Add a regression test in the same `describe` block, proving the default path is untouched:
   ```ts
   it("still emits -rc vbr, -cq:v and -forced-idr with the p5 preset for the default h264_nvenc encoder", () => {
     const a = args();
@@ -1688,12 +1688,14 @@ Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independ
   });
   ```
   Run the same command. Expect: passes already (this locks down current behavior before the fix, so an over-reaching fix would be caught).
-- [ ] Extend the existing `it("drops -hwaccel and uses plain scale for libx264")` test in `describe("buildPreviewArgs", ...)` with one more assertion: `expect(a[a.indexOf("-preset") + 1]).toBe("veryfast");`. Run the same command. Expect: fails — today's `buildPreviewArgs` always emits `"-preset", "p4"`.
-- [ ] Add a regression test for `buildPreviewArgs`'s default path: `it("still emits the p4 preset for the default h264_nvenc encoder", () => { const a = buildPreviewArgs({ sourcePath: "/in.mkv", outputPath: "/out.mp4", durationSec: 7200 }); expect(a[a.indexOf("-preset") + 1]).toBe("p4"); });`. Expect: passes already.
-- [ ] Implement the `buildLadderArgs` fix exactly as specified (encoder-aware `preset` default, gated `-rc`/`-cq:v`, sliced `KEYFRAME_ARGS`).
-- [ ] Implement the `buildPreviewArgs` fix exactly as specified (encoder-aware `-preset`).
-- [ ] Re-run `pnpm --filter @myflix/transcoder test`. Expect: all tests pass, including the two new red tests from Steps 1 and 3 and both regression tests, and every pre-existing test in the file (byte-identical default-path check).
-- [ ] Record OPEN(BA)-7 above (no libx264 CRF/quality value sourced) for Task 25's PR assembly.
+- [x] Extend the existing `it("drops -hwaccel and uses plain scale for libx264")` test in `describe("buildPreviewArgs", ...)` with one more assertion: `expect(a[a.indexOf("-preset") + 1]).toBe("veryfast");`. Run the same command. Expect: fails — today's `buildPreviewArgs` always emits `"-preset", "p4"`.
+- [x] Add a regression test for `buildPreviewArgs`'s default path: `it("still emits the p4 preset for the default h264_nvenc encoder", () => { const a = buildPreviewArgs({ sourcePath: "/in.mkv", outputPath: "/out.mp4", durationSec: 7200 }); expect(a[a.indexOf("-preset") + 1]).toBe("p4"); });`. Expect: passes already.
+- [x] Implement the `buildLadderArgs` fix exactly as specified (encoder-aware `preset` default, gated `-rc`/`-cq:v`, sliced `KEYFRAME_ARGS`).
+- [x] Implement the `buildPreviewArgs` fix exactly as specified (encoder-aware `-preset`).
+- [x] Re-run `pnpm --filter @myflix/transcoder test`. Expect: all tests pass, including the two new red tests from Steps 1 and 3 and both regression tests, and every pre-existing test in the file (byte-identical default-path check).
+- [x] Record OPEN(BA)-7 above (no libx264 CRF/quality value sourced) for Task 25's PR assembly.
+
+Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independent opus reviewer. Commit `6138ff6`. The reviewer ran the HEAD spec against `ee9287f`'s `args.ts`: 2 failed, 13 passed, and the failures were exactly the two new libx264 tests. Default NVENC output is byte-identical across 29 input combinations: 4 sizes × {none, `h264_nvenc`, `hevc_nvenc`, `preset: "p7"`, `segmentSeconds: 6`}, plus 9 preview cases. GitNexus impact on both functions is LOW with 0 impacted. For PR `## Findings`: (NOTE) `"veryfast"` is a bare string twice (`args.ts:46,184`); the named-constant convention yields to the file's inline `"p5"`/`"p4"` style. (NOTE) OPEN(BA)-7 is carried. (NITS) the libx264 test asserts only `-cq:v:0` absent.
 
 ## Task 22 — AC10/T13: anonymous-policy-is-`none` (rendered `private` by the pinned `mc`) coverage for all 4 buckets (routed from A4 S2)
 
