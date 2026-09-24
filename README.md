@@ -28,6 +28,31 @@ myflix/
 └── docker-compose.yml
 ```
 
+## Phase 0 setup
+
+Minimum dependency versions (verified against the running host/containers at acceptance time, not just declared here):
+
+| Dependency | Minimum |
+|---|---|
+| NVIDIA Driver | Linux 550.54.14 / Windows 551.76 |
+| NVIDIA Container Toolkit | 1.14.0 |
+| Docker Engine | 24.x |
+| FFmpeg | 6.1+ (built with `--enable-nvenc --enable-cuda-nvcc`, see `infra/ffmpeg/Dockerfile`) |
+| Node.js | 20 LTS |
+| PostgreSQL | 16 |
+| Redis | 7 |
+| MinIO | pinned to `RELEASE.2025-09-07T16-13-09Z` — read the real value from `docker-compose.yml`'s `minio` service `image: quay.io/minio/minio:<tag>` line (find it with `grep -n 'image:.*minio/minio' docker-compose.yml`, not a fixed line number) once Task 5 has landed; `minio/mc` pinned to `RELEASE.2025-08-13T08-35-41Z` — read from the `minio-init` service's `image: quay.io/minio/mc:<tag>` line (`grep -n 'image:.*minio/mc' docker-compose.yml`), same task. Both images moved from Docker Hub to quay.io in Task 5 because MinIO removed its Docker Hub repositories — see Task 5's Interfaces and Task 18's PR KB-feedback note |
+
+**Clean-machine bring-up** (Q16: no image, no named volume of this project, no `.env` — the repo itself is already at its current state):
+1. `cp .env.example .env`, then replace every `change-me-*` placeholder.
+   **`POSTGRES_PASSWORD` and the password embedded in `DATABASE_URL` are the same value and must be edited together** — `.env.example:8,10` embed an identical literal password in both places, and `docker-compose.yml` passes `DATABASE_URL` straight through with no interpolation from `POSTGRES_PASSWORD`. Editing only one leaves `postgres` and `api`/`transcoder` authenticating with different passwords; the stack never turns healthy and `docker compose up -d --wait` times out.
+2. `docker compose up -d --wait --wait-timeout 180` — builds the FFmpeg image (source build, the single largest consumer of the 30-minute budget below) then brings up all 7 services.
+3. `bash scripts/verify-phase0.sh` — expect PASS on all 5 items (or WAIVED on DoD-0-2 only, if running the CPU-fallback branch).
+
+**Time budget (NFR-47):** the whole clean-machine flow, image build included, must finish under **30 minutes**; `docker compose up -d --wait` alone must finish under its own 180-second `--wait-timeout`.
+
+**`docker-compose.yml` ownership (AC27, Q7):** this file is owned by the Project Owner. Any change to it, in any mission, updates `scripts/verify-phase0.sh` in the same commit and re-runs it; a green run is a merge condition.
+
 ## Bring-up
 
 ```bash
