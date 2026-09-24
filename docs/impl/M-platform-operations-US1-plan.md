@@ -2227,12 +2227,14 @@ Dev-directed after Task 28's A3 (2026-09-24). The Dev chose a small direct task 
 
 **Steps**
 
-- [ ] Red: `PATH="$STUB:$PATH" TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh 2>&1 | grep -x 'DoD-0-3  encode a 30s clip with libx264'`. Expect: no match, exit 1 (today's header says `h264_nvenc`). Paste the real output.
-- [ ] Regression baseline: `PATH="$STUB:$PATH" bash scripts/verify-phase0.sh 2>&1 | grep -x 'DoD-0-3  encode a 30s clip with h264_nvenc'`. Expect: one match, exit 0.
-- [ ] Make the change exactly as in Interfaces.
-- [ ] Green: re-run the red command. Expect: one match, exit 0. Re-run the regression command. Expect: one match, exit 0. Also run `PATH="$STUB:$PATH" TRANSCODE_ENCODER=h264_nvenc bash scripts/verify-phase0.sh 2>&1 | grep -x 'DoD-0-3  encode a 30s clip with h264_nvenc'`. Expect: exit 0.
-- [ ] A syntax check (`bash -n scripts/verify-phase0.sh`) exits 0, and `git diff` touches only the DoD-0-3 lines.
-- [ ] `pnpm -r test` and `npx eslint . && npx prettier --check .` both exit 0.
+- [x] Red: `PATH="$STUB:$PATH" TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh 2>&1 | grep -x 'DoD-0-3  encode a 30s clip with libx264'`. Expect: no match, exit 1 (today's header says `h264_nvenc`). Paste the real output.
+- [x] Regression baseline: `PATH="$STUB:$PATH" bash scripts/verify-phase0.sh 2>&1 | grep -x 'DoD-0-3  encode a 30s clip with h264_nvenc'`. Expect: one match, exit 0.
+- [x] Make the change exactly as in Interfaces.
+- [x] Green: re-run the red command. Expect: one match, exit 0. Re-run the regression command. Expect: one match, exit 0. Also run `PATH="$STUB:$PATH" TRANSCODE_ENCODER=h264_nvenc bash scripts/verify-phase0.sh 2>&1 | grep -x 'DoD-0-3  encode a 30s clip with h264_nvenc'`. Expect: exit 0.
+- [x] A syntax check (`bash -n scripts/verify-phase0.sh`) exits 0, and `git diff` touches only the DoD-0-3 lines.
+- [x] `pnpm -r test` and `npx eslint . && npx prettier --check .` both exit 0.
+
+Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independent opus reviewer. Commit `23309fe` (one line moved, one changed). The reviewer checked red at `0b209d4` (`libx264` header: no match, exit 1) and green at HEAD (all three header checks match). Full script output is byte-identical with the encoder unset, and differs only in the DoD-0-3 header under `libx264`. NOTE: any non-`h264_nvenc` value still takes the libx264 path, and the header now says so honestly.
 
 ## A4 — whole-branch review (opus reviewer): branch does NOT yet fulfil the ticket
 
