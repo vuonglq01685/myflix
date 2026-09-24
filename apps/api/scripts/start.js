@@ -13,6 +13,7 @@
 /* eslint-disable no-undef, @typescript-eslint/no-require-imports -- Node CJS globals (require/process), see note above */
 "use strict";
 
+const os = require("node:os");
 const { spawnSync, spawn } = require("node:child_process");
 
 const migrate = spawnSync(
@@ -45,5 +46,8 @@ for (const signal of ["SIGTERM", "SIGINT"]) {
 }
 
 api.on("exit", (code, signal) => {
-  process.exit(code ?? (signal ? 1 : 0));
+  // 128 + signal number (e.g. 143 for SIGTERM) is the conventional shell
+  // exit code for a signal-terminated process -- a flat 1 would make a
+  // normal `docker stop` look like a crash.
+  process.exit(code ?? (signal ? 128 + os.constants.signals[signal] : 0));
 });
