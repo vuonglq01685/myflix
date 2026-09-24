@@ -1504,7 +1504,7 @@ steps ran, 8 left unrun and annotated above. **The AC tally this task produced i
 the branch and must not be softened in the PR: verified-on-a-running-stack = 0.** Verified statically:
 `cmd.test`, `cmd.lint` (exit 0, confirmed directly), AC24, AC6's build-time half, OPEN(BA)-3,
 OPEN(BA)-5. **Not verified at all:** AC1, AC2, AC4, AC5, AC6-runtime, AC8, AC9, AC10, AC11, AC12, AC13,
-AC16, AC17's live half, AC18, AC19, AC21, AC23, AC25, and the AC1/NFR-47 clean-machine timing run. The
+**AC14**, AC16, AC17's live half, AC18, AC19, AC21, AC23, AC25, and the AC1/NFR-47 clean-machine timing run. The
 assembled `## KB feedback` and `## Findings` PR sections are in `task-18-report.md`.
 
 ↳ **This task caught a gap in the tracked record and it has been closed.** Tasks 10 and 16 carried no
@@ -1512,6 +1512,90 @@ annotation explaining their blank state, unlike every ticked task, so their reas
 gitignored ledger and would have vanished on a fresh clone — meaning this task's own "Final check" DoD
 was not satisfied by the tracked plan. Both now carry a `STATUS:` block stating plainly that AC21 and
 AC10 reach handover NOT VERIFIED (commit `cace352`).
+
+## A4 — whole-branch review (opus reviewer): branch does NOT yet fulfil the ticket
+
+Judged against the ticket's AC1–AC27 and T1–T35 across 42 commits / 168 files. Merge risk was
+explicitly out of scope. Two gaps where the branch falls short **in substance, not merely in
+verification** — plus findings recorded here because `docs/impl/*-review/` is gitignored and would not
+survive a fresh clone.
+
+### B1 — BLOCKER, **this branch broke the CPU-fallback path**. FIXED as `d053851`
+
+Task 4 added a `transcoder` healthcheck running `redis-cli -h redis ping` and installed `redis-tools`
+into the **GPU** image only. `infra/compose/docker-compose.cpu.yml` swaps `build.dockerfile` to
+`infra/ffmpeg/cpu-fallback.Dockerfile` **but does not override the healthcheck**, so the CPU image
+inherited a healthcheck for a binary it did not contain. Verified before the fix: `redis-tools` absent
+from `cpu-fallback.Dockerfile`; the merged CPU config showing
+`build=infra/ffmpeg/cpu-fallback.Dockerfile` with
+`healthcheck=["CMD","redis-cli","-h","redis","ping"]`. The probe could never pass, so `transcoder` would
+never turn healthy and `up -d --wait` would time out — **making AC23 unreachable**, on the exact path
+`README.md` now documents as the Mac/CI route via `make up-cpu`.
+**This is a regression this branch introduced, not a pre-existing defect:** at the merge-base `007108e`
+the `transcoder` service had **no healthcheck at all**, so CPU bring-up was never gated on `redis-cli`,
+and `cpu-fallback.Dockerfile` was on no task's Files list and untouched by all 42 prior commits.
+Fixed by mirroring Task 4's own change, with a comment naming the inheritance. **Still unverified and
+unverifiable here:** neither transcoder image has ever been built, so "`redis-tools` provides
+`redis-cli`" is asserted from the package name rather than observed.
+
+### S2 — **T13 has no coverage or acknowledgement anywhere.** OPEN
+
+Ticket `:282`: `| T13 | Đọc anonymous policy của cả 4 bucket | Cả 4 trả none | AC10 |` — read the
+anonymous policy of all four buckets and confirm each returns `none`. Measured: **T13 appears zero
+times** in this plan, in the design, in the findings ledger, and in `task-18-report.md`. It is not
+covered, not deferred, and not acknowledged as out of scope. Task 16 covers AC10's _other_ verification
+item (T14, the anonymous-GET-403 probe); T13 is a distinct check (`mc anonymous get local/<bucket>` × 4).
+`scripts/minio-init.sh` does apply `mc anonymous set none`, so the state is likely correct — but nothing
+verifies it and no artefact admits the gap. **This is the gap that survives a plan whose every box is
+ticked.** Needs a `/dev-plan` decision: author coverage, or record it as an accepted deferral.
+
+### The deps-stage defect is in **THREE** Dockerfiles, not two — correcting every prior record
+
+Every earlier review, the ledger, `task-18-report.md` and the orchestrator's own summaries said two.
+Measured at HEAD: `apps/api/Dockerfile:7-10`, `infra/ffmpeg/Dockerfile:69-72` **and
+`infra/ffmpeg/cpu-fallback.Dockerfile:20-23`** each copy `pnpm-workspace.yaml`, the root manifest,
+`packages/shared`, `packages/db` and their own app manifest while omitting `packages/storage/package.json`
+— and `apps/api/package.json:17` and `apps/transcoder/package.json:15` both declare
+`"@myflix/storage": "workspace:*"`. **The owning `/dev-plan` task must cover all three**; scoping it to
+two leaves the CPU-fallback path unbuildable and therefore B1's fix unverifiable.
+
+### S8 — Task 17b reformatted 12 package-owned files marked "do not hand-edit"
+
+`f883f56` reformatted 12 of the 17 `docs/conventions/` files, each carrying a banner saying it is owned
+by the `strata-kb` package and refreshed by `kb init`, so **do not hand-edit**. The drift is purely
+formatting (Markdown table padding, `*em*`→`_em_`; A4 compared word streams and found them
+token-for-token identical, so no rule text changed). The forward problem is a churn loop: the next
+`kb init` refresh either overwrites 17b's formatting — re-reddening `prettier --check .` and therefore
+`cmd.lint`, which this branch spent 42 commits turning green — or shows up as a spurious diff every
+time. Candidate fix: add `docs/conventions/` to `.prettierignore`. **This is the same open question as
+the `.prettierignore` ratification already owed to the Dev** (Task 1's clause forbidding extension to
+hand-authored doc files, versus package-owned files that merely look hand-authored) — settle both with
+one decision, not two.
+
+### N1 — withdrawn by the reviewer on its own initiative, and worth recording
+
+A4 initially reported "~680 lines of new governing rules landed on a docker-compose ticket", implying
+authored content. It then verified and **withdrew** that: `strata-kb 1.2.0` is installed, and all
+**17 of 17** `docs/conventions/` files as committed in `53bd099` are byte-identical to
+`strata_kb/templates/init/conventions-*.md`. So it is a verbatim `kb init` package refresh, not
+authorship. The residual finding stands at lower severity: a legitimate mechanical refresh rode along
+inside the commit that flipped this plan to `status: approved`, on no task's Files list, and is absent
+from the PR material — remedy is a one-line `## Findings` entry, **not a revert**. Note this
+_strengthens_ Task 1: since `docs/conventions/ts.md` is verbatim upstream text, the "Linting (preset)"
+rule Task 1 rests on cannot have been tailored to suit it.
+
+### Unjustified, no AC and no task: `.gitignore` gained `.claude/` and `.github/`
+
+Commit `722fc81` added both with no AC, no owning task and no recorded reason. `.github/` being ignored
+**permanently blocks committing CI workflows**, which is a live constraint on this repo rather than a
+cosmetic one. Needs a Dev decision.
+
+### What A4 confirmed clean
+
+`f883f56` is formatting-only, with the `.prettierignore` config change as its sole non-mechanical byte.
+The six orchestrator-authorised additions each trace to an AC or a review finding. The five sequential
+rewrites of `scripts/verify-phase0.sh` left every earlier task's constraint intact in the **end state**,
+verified rather than inferred from the chain.
 
 ## Review record
 
