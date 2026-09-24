@@ -10,6 +10,7 @@ pass=0; fail=0
 FRESH=0
 [ "${1:-}" = "--fresh" ] && FRESH=1
 [ $# -gt 0 ] && [ "$1" != "--fresh" ] && { echo "unknown argument: $1" >&2; exit 2; }
+[ $# -gt 1 ] && { echo "usage: $0 [--fresh]" >&2; exit 2; }
 
 if [ "$FRESH" -eq 1 ]; then
   docker compose down -v
