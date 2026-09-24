@@ -89,8 +89,9 @@ echo "DoD-0-4  four MinIO buckets exist"
 subcheck "exactly 4 buckets" bash -c '
   out=$(docker compose run --rm -T minio-init 2>/dev/null)
   names=$(printf "%s\n" "$out" | awk "/buckets ready:/{found=1; next} found && NF{n=\$NF; sub(/\/\$/,\"\",n); print n}")
-  n=$(printf "%s\n" "$names" | grep -cE "myflix-(source|media|images|staging)$")
+  n=$(printf "%s\n" "$names" | grep -cE "^myflix-(source|media|images|staging)$")
   total=$(printf "%s\n" "$names" | grep -cE ".")
+  echo "required=$n total=$total"
   [ "$n" -eq 4 ] && [ "$total" -eq 4 ]
 '
 item_done "DoD-0-4"
