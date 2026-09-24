@@ -201,14 +201,74 @@ Review: ✅ r2 — A3 clean (spec compliance + code quality), independent review
 - Produces for later tasks: `docker-compose.yml` with 7/7 services carrying a `healthcheck:` block (consumed by Task 13's DoD-0-1 exactness rewrite and Task 18's clean-machine `--wait` timing run); `infra/ffmpeg/Dockerfile` with `redis-tools` installed (consumed by the same).
 
 **Steps**
-- [ ] (Host, Docker only) Failing test: `docker compose config --format json 2>/dev/null | jq -e '.services.web.healthcheck != null and .services.transcoder.healthcheck != null'`. Expect: exits 1 (both `null` today).
-- [ ] Add `redis-tools` to `infra/ffmpeg/Dockerfile` line 54's `apt-get install` package list.
-- [ ] Insert the `web` and `transcoder` healthcheck blocks shown above into `docker-compose.yml` at the cited insertion points.
-- [ ] (Host, Docker only) Re-run Step 1's command. Expect: exits 0.
-- [ ] (Host, Docker only) Confirm the healthcheck `test` arrays match exactly what's specified above: `docker compose config --format json | jq -e '(.services.web.healthcheck.test | join(" ")) == "CMD node -e fetch('"'"'http://localhost:3000/'"'"', {redirect:'"'"'manual'"'"'}).then(r=>process.exit(r.status<400?0:1)).catch(()=>process.exit(1))" and (.services.transcoder.healthcheck.test) == ["CMD","redis-cli","-h","redis","ping"]'` (adjust quoting for your shell; the point is both fields are non-null and match the literal command written above).
+- [x] (Host, Docker only) Failing test: `docker compose config --format json 2>/dev/null | jq -e '.services.web.healthcheck != null and .services.transcoder.healthcheck != null'`. Expect: exits 1 (both `null` today).
+- [x] Add `redis-tools` to `infra/ffmpeg/Dockerfile` line 54's `apt-get install` package list.
+- [x] Insert the `web` and `transcoder` healthcheck blocks shown above into `docker-compose.yml` at the cited insertion points.
+- [x] (Host, Docker only) Re-run Step 1's command. Expect: exits 0.
+- [x] (Host, Docker only) Confirm the healthcheck `test` arrays match exactly what's specified above: `docker compose config --format json | jq -e '(.services.web.healthcheck.test | join(" ")) == "CMD node -e fetch('"'"'http://localhost:3000/'"'"', {redirect:'"'"'manual'"'"'}).then(r=>process.exit(r.status<400?0:1)).catch(()=>process.exit(1))" and (.services.transcoder.healthcheck.test) == ["CMD","redis-cli","-h","redis","ping"]'` (adjust quoting for your shell; the point is both fields are non-null and match the literal command written above).
+
+      ↳ **Steps 6, 7 and 8 left unticked and unrun — TWO blockers, not one.** (i) No GPU on this
+      host. (ii) **Two structurally identical deps-stage gaps**, both pre-existing and neither owned
+      by any task in this plan. `apps/api/Dockerfile` copies only `packages/shared`, `packages/db`
+      and `apps/api` manifests; `infra/ffmpeg/Dockerfile:69-72` copies only `packages/shared`,
+      `packages/db` and `apps/transcoder`. Both omit `packages/storage/package.json`, while
+      `apps/api/package.json:17` and `apps/transcoder/package.json:15` each declare
+      `"@myflix/storage": "workspace:*"` and the transcoder source genuinely imports it
+      (`src/storage/storage.service.ts:3`, `src/jobs/transcode.processor.ts:12`). `pnpm-workspace.yaml`
+      globs `packages/*`, so the package is absent from the build context at install time and
+      `pnpm install` fails `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` in both.
+      **Consequence, found by A3 r2 and verified first-hand:** step 6's first command is
+      `docker compose build transcoder web`, which never builds `api` — so **fixing
+      `apps/api/Dockerfile` alone would NOT unblock this step**, and `redis-tools` has never been
+      build-verified. Route BOTH files to the same owning task via `/dev-plan`.
+      Consequence already recorded: `start_period` 30s/40s ship as unmeasured starting points.
 - [ ] (GPU host) `docker compose build transcoder web && docker compose up -d --wait --wait-timeout 180`. Watch `docker compose ps --format '{{.Service}} {{.Health}}'` while the stack comes up. If `web` or `transcoder` flap unhealthy→healthy more than once, or `--wait` times out solely waiting on one of them, raise that service's `start_period` in the block above and repeat this step (Risk 3).
 - [ ] (GPU host) If the same `--wait` run above times out specifically because `minio-init` (a `restart: "no"`, no-healthcheck, exit-0 one-shot with no service `depends_on`s it as `service_completed_successfully`) is never recognized as satisfied — design §7 Risk 7, unconfirmed on this repo's Compose version — add to `api`'s `depends_on:` block (line 76–79) a fourth entry: `minio-init: { condition: service_completed_successfully }`, rebuild, and retry. If `--wait` succeeds without this, do not add it (YAGNI — this design explicitly does not wire it speculatively).
 - [ ] (GPU host) T20b: `docker compose stop redis`, wait one healthcheck interval (≥10s), `docker compose ps --format '{{.Service}} {{.Health}}'`. Expect `redis` and `transcoder` both leave `healthy` (transcoder depends on Redis for its own ping check). `docker compose start redis` to restore.
+
+
+Review: ✅ r2 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 2 rounds,
+no BLOCKER in either. Commits `edea769` (the task) + `cc1501d` (round-1 fix). Round 1 rebuilt the parent
+state in scratch and reproduced RED itself, then parsed this block's two fenced YAML snippets
+programmatically and byte-compared them against the committed lines — **both byte-identical to spec**,
+including `{redirect:'manual'}` and both `start_period` values — and confirmed `redis-tools` lands in the
+**runtime** stage, not the builder. Round 2 re-ran step 5's byte-exact assertion after the fix
+(`true`, exit 0, both arrays unchanged) and re-censused the file: **8 services, 7 with a healthcheck,
+`minio-init` correctly without**. Round 1's SUGGESTED (two deletion-fragile artifacts carrying no in-file
+marker) is **RESOLVED** by `cc1501d`, judged legitimate on four checked grounds — the comments sit
+outside the prescribed blocks, both files are on this block's own Files list, `de0d26c` set the precedent
+and Task 5's r2 already ruled that precedent legitimate under `ts.md`'s "repo wins locally", and the
+repo's dominant style comments exactly this class. Prettier verified to gain **zero** new complaints.
+
+  ↳ **Two comment-accuracy corrections applied, both on text the orchestrator wrote.** First, "plain
+  fetch would follow / onward to /browse" overstated the plan's own conditional wording, corrected before
+  review. Second, A3 r2 found the remaining text still named an exception that path cannot reach:
+  `/browse` SSRs `apiFetch('/catalog/rows')`, but `api-client.ts:19-23` forwards no cookie and no
+  `Authorization` header (there is no `next/headers`/`cookies()` anywhere in `apps/web/src`), and
+  `/catalog/rows` is `@UseGuards(JwtAuthGuard, ProfileGuard)` with `JwtStrategy` reading a Bearer header
+  — so the request **401s at the guard** and never reaches `CatalogService.getRows`'s
+  `NotImplementedException`. The operative conclusion survives and is more robust than written
+  (`apiFetch` throws `ApiError`, no `error.tsx`/`loading.tsx` exists under `apps/web/src/app`, so Next
+  500s either way). Reworded. **The inaccuracy originates in this block (`task-4-block.md:19`) and
+  design §3.3** — plan-text defect, carried to the PR as a plan-quality finding. The reviewer's NITS
+  that reaching `/browse` needs **both** `refresh_token` and `pid` (with only `refresh_token`,
+  `middleware.ts:21-23` sends you to `/profiles`, a static 200 outside the matcher) is folded in too.
+
+  ↳ **Transcoder healthcheck — surfaced for the Dev, not changed (A3's own assessment: SUGGESTED).**
+  `docker-compose.yml`'s **`redis` service healthcheck is `["CMD","redis-cli","ping"]`**, so the
+  transcoder check is the same probe of the same service from a different container. `transcoder`'s
+  health column carries no information `redis`'s does not, step 8's T20b expectation is **tautological by
+  construction**, and since nothing `depends_on: transcoder` it gates no ordering — for AC1/AC16
+  `transcoder` is a rubber stamp. Below BLOCKER because there is nothing else to probe (headless worker,
+  "no HTTP listener, nothing exposed"). Note the earlier "crashed worker still reports healthy" framing
+  was **wrong**: a crash exits the process and so the container, which Docker reports as exited. The
+  uncovered case is a **hung** worker. **Dev option, same binary and same T20b behaviour:** worker writes
+  a TTL'd heartbeat key, check reads `redis-cli -h redis exists transcoder:heartbeat`.
+
+  ↳ **Do not let this tick read as AC closure.** Task 4 removes the *static* blocker for AC1/AC16 only;
+  whether the checks pass at runtime is Task 18's clean-machine `--wait` run. And the assertion has **no
+  durable home** — `scripts/verify-phase0.sh` carries no healthcheck-presence assertion, so nothing would
+  catch a future deletion of these blocks. This block assigns that to **Task 13**; confirm Task 13 lands it.
 
 ## Task 5 — `docker-compose.yml`: pin `minio/minio` and `minio/mc` off `:latest` (AC26)
 
