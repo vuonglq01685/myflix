@@ -37,13 +37,13 @@ export interface LadderJobOptions {
 export function buildLadderArgs(options: LadderJobOptions): string[] {
   const { sourcePath, outputDir, probe } = options;
   const encoder = options.encoder ?? "h264_nvenc";
-  const preset = options.preset ?? "p5";
   const segmentSeconds = options.segmentSeconds ?? 4;
 
   // NVENC-only flags (-hwaccel cuda, scale_cuda) don't apply to a CPU
   // encoder like libx264, and the CPU fallback ladder is capped to 720p/480p
   // (AC21) rather than the full source-driven ladder.
   const useCuda = encoder.includes("nvenc");
+  const preset = options.preset ?? (useCuda ? "p5" : "veryfast");
   const rungs = buildLadder(
     probe,
     useCuda ? undefined : { limitTo: ["720p", "480p"] as const },
@@ -90,10 +90,7 @@ export function buildLadderArgs(options: LadderJobOptions): string[] {
       rung.profile,
       "-preset",
       preset,
-      "-rc",
-      "vbr",
-      `-cq:v:${i}`,
-      String(rung.cq),
+      ...(useCuda ? ["-rc", "vbr", `-cq:v:${i}`, String(rung.cq)] : []),
       `-b:v:${i}`,
       `${rung.bitrateKbps}k`,
       `-maxrate:v:${i}`,
@@ -117,7 +114,13 @@ export function buildLadderArgs(options: LadderJobOptions): string[] {
     "48000",
   );
 
-  args.push(...KEYFRAME_ARGS(gop));
+  const keyframeArgs = KEYFRAME_ARGS(gop);
+  const forcedIdrIndex = keyframeArgs.indexOf("-forced-idr");
+  args.push(
+    ...(useCuda || forcedIdrIndex === -1
+      ? keyframeArgs
+      : keyframeArgs.slice(0, forcedIdrIndex)),
+  );
 
   args.push(
     "-f",
@@ -178,7 +181,7 @@ export function buildPreviewArgs(params: {
     "-c:v",
     encoder,
     "-preset",
-    "p4",
+    useCuda ? "p4" : "veryfast",
     "-b:v",
     "400k",
     "-maxrate",

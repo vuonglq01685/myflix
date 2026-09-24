@@ -91,6 +91,30 @@ describe("buildLadderArgs", () => {
     const map = a[a.indexOf("-var_stream_map") + 1]!;
     expect(map).toBe("v:0,a:0,name:720p v:1,a:1,name:480p");
   });
+
+  it("omits NVENC-only rate-control flags and uses the libx264 preset for a non-NVENC encoder", () => {
+    const a = buildLadderArgs({
+      sourcePath: "/in.mkv",
+      outputDir: "/out",
+      probe,
+      encoder: "libx264",
+    });
+    expect(a).not.toContain("-rc");
+    expect(a).not.toContain("-cq:v:0");
+    expect(a).not.toContain("-forced-idr");
+    expect(a[a.indexOf("-preset") + 1]).toBe("veryfast");
+    expect(a).toContain("-g");
+    expect(a).toContain("-keyint_min");
+    expect(a).toContain("-sc_threshold");
+  });
+
+  it("still emits -rc vbr, -cq:v and -forced-idr with the p5 preset for the default h264_nvenc encoder", () => {
+    const a = args();
+    expect(a[a.indexOf("-rc") + 1]).toBe("vbr");
+    expect(a).toContain("-cq:v:0");
+    expect(a[a.indexOf("-preset") + 1]).toBe("p5");
+    expect(a[a.indexOf("-forced-idr") + 1]).toBe("1");
+  });
 });
 
 describe("buildPreviewArgs", () => {
@@ -116,6 +140,16 @@ describe("buildPreviewArgs", () => {
     });
     expect(a).not.toContain("-hwaccel");
     expect(a[a.indexOf("-vf") + 1]).toBe("scale=854:480");
+    expect(a[a.indexOf("-preset") + 1]).toBe("veryfast");
+  });
+
+  it("still emits the p4 preset for the default h264_nvenc encoder", () => {
+    const a = buildPreviewArgs({
+      sourcePath: "/in.mkv",
+      outputPath: "/out.mp4",
+      durationSec: 7200,
+    });
+    expect(a[a.indexOf("-preset") + 1]).toBe("p4");
   });
 });
 
