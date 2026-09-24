@@ -813,12 +813,83 @@ still run, with exit decided once at the tail by `[ "$fail" -eq 0 ]`.
 - Produces for later tasks: nothing new consumed elsewhere; this closes out AC1/AC2/AC16's own DoD-0-1 verification, re-confirmed wholesale by Task 18.
 
 **Steps**
-- [ ] (Host, live stack, no GPU strictly for this assertion's logic — but a real 7-healthy stack needs the GPU host per Task 4) Failing test: with the stack NOT fully healthy (e.g. `web` stopped): `bash scripts/verify-phase0.sh 2>&1 | grep -A5 '^DoD-0-1'`. Expect (before this task): the pre-existing `docker compose ps --status running --quiet` sub-check still reports PASS as long as the `docker compose ps` command itself succeeds (even with fewer than 7 healthy) — a false-PASS, not the exact-count failure this task requires.
-- [ ] Replace the loose "running --quiet" sub-check with the exact-count `subcheck` shown above; add the new `minio-init` state+exit-code `subcheck`.
-- [ ] Re-run the same partial-stack scenario. Expect: `DoD-0-1  FAIL` now, with detail showing the 7-healthy sub-check's actual count.
+- [x] (Host, live stack, no GPU strictly for this assertion's logic — but a real 7-healthy stack needs the GPU host per Task 4) Failing test: with the stack NOT fully healthy (e.g. `web` stopped): `bash scripts/verify-phase0.sh 2>&1 | grep -A5 '^DoD-0-1'`. Expect (before this task): the pre-existing `docker compose ps --status running --quiet` sub-check still reports PASS as long as the `docker compose ps` command itself succeeds (even with fewer than 7 healthy) — a false-PASS, not the exact-count failure this task requires.
+- [x] Replace the loose "running --quiet" sub-check with the exact-count `subcheck` shown above; add the new `minio-init` state+exit-code `subcheck`.
+- [x] Re-run the same partial-stack scenario. Expect: `DoD-0-1  FAIL` now, with detail showing the 7-healthy sub-check's actual count.
 - [ ] (GPU host) Bring the full stack up healthy (`docker compose up -d --wait --wait-timeout 180`, reusing Task 4's confirmed-healthy configuration). Run `bash scripts/verify-phase0.sh`. Expect: `DoD-0-1  PASS`.
+
+      ↳ **Steps 4, 5 and 6 left unticked and unrun** — no GPU, and independently blocked by the two
+      deps-stage defects (`apps/api/Dockerfile`, `infra/ffmpeg/Dockerfile:69-71`, both omitting
+      `packages/storage/package.json`). Host-only stub substitutes run and labelled as substitutes.
+      A3 r3 did reach real docker for the parts that can be: `docker compose ps --format
+      "{{.Service}} {{.Health}}"` renders exactly the shape the grep expects (raw bytes
+      `m i n i o ␣ h e a l t h y \n`), and the literal `7` is validated against the real compose file
+      — `docker compose config --services` gives 8, minus `minio-init` = **7**, and all 7 long-running
+      services declare `healthcheck:` while `minio-init` is the only one that does not.
 - [ ] (GPU host) `docker compose ps -a --format '{{.Service}} {{.State}} {{.ExitCode}}'` directly — expect exactly one line `minio-init exited 0` and exactly 7 lines with state `running`.
 - [ ] (GPU host — AC16/T23, images already built by the step above) `docker compose down` (no `-v`); disconnect the host's internet uplink while keeping the LAN/Docker bridge network up; `docker compose up -d --wait --wait-timeout 180`. Expect: exits 0, 7/7 `healthy` — confirm with `docker compose ps --format '{{.Service}} {{.Health}}'`. Reconnect the host's internet afterward.
+
+
+Review: ✅ r3 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 3 rounds.
+Commits `edd95cd` (the task), `614bae4` (a BROKEN fix) and `c379968` (the fix that works).
+**Round 2 raised a BLOCKER on the orchestrator's own round-1 fix and both verdicts FAILED; round 3
+confirms it RESOLVED.** Round 3 reproduced the break on `614bae4` (`line 55: $2: unbound variable`,
+**0** anchored verdict lines, `[BLOCKING]` DoD-0-2 never reached) and confirmed `c379968` gives **5**
+anchored verdict lines with full item coverage on **every one of 13 run paths** and **0** aborts.
+`bash -n` reports `syntax OK` on **both** revisions — a parse-only check is blind to this class.
+
+  ↳ **What the orchestrator got wrong, recorded because the lesson outlives the fix.** Round 1's
+  SUGGESTED-1 was real: `grep -c " healthy$"` counts matching **lines**, not distinct services, so a
+  duplicated line substitutes for a missing one — a false-PASS inside the check that existed to close
+  one. The fix's *semantics* were right, but it nested single quotes inside the already single-quoted
+  `bash -c '...'` body, closing it early; `$2`/`$1` were expanded by the outer script and `set -u`
+  aborted the script at line 55 on **every** invocation — breaking both production callers
+  (`Makefile:28`, `package.json:20`), and under `--fresh` aborting *after* `docker compose down -v` and
+  a full bring-up: destructive teardown, complete rebuild, one line of output, no verdict. It shipped
+  because the fix was verified against the **pipeline in isolation, not the artefact** — the pipeline
+  genuinely produced the claimed numbers but never executed inside the script. `c379968` is the original
+  matcher plus one pipe stage, no nested quotes, matching this file's own idiom at `:51-52`.
+  **Standing rule: a fix to this script is verified by running it end to end under a stub, never by a
+  fragment and never by a syntax-only parse alone.**
+
+  ↳ **Round 3 confirmed each required property against the script, not a fragment:** `" healthy$"`
+  matches neither `unhealthy`, nor an empty Health field, nor `starting`, nor `x health`, nor `y healthyz`
+  (fed all six, only `api healthy` matched); `sort -u` dedups a repeat (`api,api`→1) without collapsing
+  distinct services (`api,web`→2; `api,api,web`→2); the Task 4 regression still FAILs (`web` or
+  `transcoder` healthcheck deleted → `healthy: 6/7`), as does an **over**-count (8 healthy → `8/7` FAIL,
+  not a silent pass); `[ "$n" -eq 7 ]` was never broken by `wc` padding (arithmetic strips whitespace)
+  and `tr -d " "` removes the cosmetic leak — **NITS-2 resolved**; and no temp file leaks on any exit
+  path, with the three early exits (both argv guards, the `--fresh` bring-up failure) all preceding
+  `mktemp` so the trap is never installed and cannot trip `set -u`.
+
+  ↳ **SUGGESTED-A — PR `## Findings`, no code change.** The shipped line deviates from this block's
+  Interfaces fence in **two** ways: the `sort -u` pipeline (the semantic fix — the block's literal code
+  leaves the false-PASS) and the `echo "healthy: $n/7"` (which the block's fence omits but its own Steps
+  section requires, so the FAIL detail shows the count). **This matters beyond bookkeeping: this block
+  states DoD-0-1 is "re-confirmed wholesale by Task 18", so anyone re-deriving the script from the plan
+  text reintroduces the false-PASS.** Discharged into `task-13-report.md` as an addendum (SUGGESTED-B),
+  which had gone stale claiming the `grep -c` form was "copied verbatim from the block".
+
+  ↳ **NOTE-2 — owed work, and the real root cause (PR `## Findings`).** **There is no automated
+  regression test for this script anywhere in the repo.** `cmd.test` (`pnpm -r test`) cannot reach it,
+  ESLint and Prettier have no `.sh` parser, `shellcheck` is not installed, and `bash -n` demonstrably
+  passes the broken form. So `common/testing.md`'s GREEN step was satisfied only by hand-built stub runs
+  — twice — and the first time on a fragment, which is exactly how the BLOCKER shipped. A ~20-line
+  fixture test (stub `docker` on `PATH`; assert the anchored verdict count is 5 and no `unbound variable`
+  appears) would have caught it in one second. Not Task 13's to fix and no task owns it — **recommend
+  `/dev-plan` author one.**
+
+  ↳ **Still open, all non-blocking and all confirmed fail-safe:** NOTE-3 (the minio-init sub-check
+  renders `absent`, `running` and `exited 1` identically, with no detail line — asymmetric with the
+  7-healthy check that got an `echo` for exactly this reason; item still FAILs); NOTE-4 (two identical
+  `docker compose ps -a` calls for two fields of one row — DRY plus a TOCTOU window whose only outcome is
+  a mismatch → FAIL); NOTE-5 (`mktemp` failure leaves `out` set-but-empty, so every sub-check fails
+  noisily rather than falsely passing); NOTE-1 (`sort -u` would collapse replicas if any service ever got
+  `replicas`/`scale` > 1 — none does, and it under-counts, never false-PASSes); NITS-8 (`out` naming,
+  repo wins locally); NITS-9 (literal `7` twice, value validated against the real compose file).
+  **NOTE-6 is now closed as moot rather than merely unfounded:** `minio-init` is the only service without
+  a `healthcheck:`, so its `{{.Health}}` is always empty and it can never match `" healthy$"` even while
+  still running — the block's "wait for it first" premise does not apply. **Do not add a wait loop.**
 
 ## Task 14 — `scripts/verify-phase0.sh`: DoD-0-3 duration bound + encoder-aware preset swap (AC5, AC23 part 2)
 
@@ -849,13 +920,76 @@ still run, with exit decided once at the tail by `[ "$fail" -eq 0 ]`.
 - Produces for later tasks: nothing Task 18 depends on surviving. Task 18's T33/AC25 timing procedure does **not** reuse this task's `/scratch/phase0.mp4` — Task 18's own AC11 step runs `docker compose down -v` before AC25 measures anything, which destroys the `transcode-scratch` volume (and with it any file this task left on it). Task 18's AC25 bullet instead regenerates its own copy of this same 30s source, untimed, before timing the encode — see that bullet for the self-contained procedure.
 
 **Steps**
-- [ ] (Host, no Docker needed) Failing test: `grep -q 'format=duration' scripts/verify-phase0.sh`. Expect: fails — no duration read exists in the current file.
-- [ ] Replace the DoD-0-3 `subcheck` command with the encoder-aware version above.
-- [ ] Re-run Step 1's grep. Expect: passes.
-- [ ] (Host, no Docker needed) `bash -n scripts/verify-phase0.sh`. Expect: exits 0.
+- [x] (Host, no Docker needed) Failing test: `grep -q 'format=duration' scripts/verify-phase0.sh`. Expect: fails — no duration read exists in the current file.
+- [x] Replace the DoD-0-3 `subcheck` command with the encoder-aware version above.
+- [x] Re-run Step 1's grep. Expect: passes.
+- [x] (Host, no Docker needed) `bash -n scripts/verify-phase0.sh`. Expect: exits 0.
 - [ ] (GPU host) `bash scripts/verify-phase0.sh` against the live NVENC stack. Expect: `DoD-0-3  PASS`; confirm manually once via `docker compose exec -T transcoder ffprobe -v error -show_entries format=duration -of csv=p=0 /scratch/phase0.mp4` that the printed duration is in `[29.5, 30.5]`.
 - [ ] (GPU host) Negative-path sanity check (proves the bound actually rejects an out-of-range duration, not just that the grep text exists): temporarily change the `subcheck` command's `-t 30` to `-t 5` (a deliberately short encode, ~5s output, outside 29.5–30.5s), re-run `bash scripts/verify-phase0.sh`, and confirm `DoD-0-3  FAIL` with the `awk` bound rejecting the short duration in the printed detail; then revert `-t 5` back to `-t 30` and confirm `DoD-0-3  PASS` again before moving on.
 - [ ] (Host, live stack via CPU-fallback compose, no GPU — only if Task 10 was triggered) `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh` (exported on the invoking shell, not `.env` — see Task 12's Interfaces for why `.env` alone does not reach this script). Expect: `DoD-0-2  WAIVED` (from Task 12) and `DoD-0-3  PASS` (this task, via `libx264`/`veryfast`), overall script exit `0`.
+
+      ↳ **Steps 5, 6 and 7 left unticked and unrun.** 5 and 6 need a GPU, and are independently
+      blocked by the two deps-stage defects (`apps/api/Dockerfile`, `infra/ffmpeg/Dockerfile:69-71`,
+      both omitting `packages/storage/package.json`), confirmed still present and untouched. Step 7 is
+      **additionally Task-10-gated**, and Task 10's TRIGGERED / NOT TRIGGERED value is a Project Owner
+      decision that **has not been supplied** — so its governing input does not exist, independently of
+      any stack. The implementer did not guess it, derive it from other tasks, or implement the triggered
+      branch, and explicitly declined to let its own `TRANSCODE_ENCODER=libx264` test stand in for it.
+      Substituted with a stub `docker`/`ffmpeg`/`ffprobe` harness that runs the real bash logic and
+      asserts the **underlying invocations**, not just the printed verdict.
+
+
+Review: ✅ r2 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 2 rounds,
+no BLOCKER in either. Commits `1a1fb96` (the task) + `4143398` (round-1 fix). Both rounds built their
+own logging stubs and asserted the **work** rather than the printing: `ENC`/`PRESET` genuinely reach
+`ffmpeg` on both branches (`-c:v h264_nvenc -preset p5`; `-c:v libx264 -preset veryfast` with
+`DoD-0-2 WAIVED` + `DoD-0-3 PASS`, satisfying AC23), and the `&&` chain really executes rather than
+short-circuiting — failure injected at every link, with the call count proving where it stopped.
+
+  ↳ **Verified on the awk that will actually run, not the host's.** The implementer validated the
+  bound with macOS/BSD awk 20200816, but the transcoder base is
+  `nvidia/cuda:12.4.1-runtime-ubuntu22.04`, whose `awk` resolves to **mawk 1.3.4**. Round 1 re-ran all
+  16 duration values inside `ubuntu:22.04`; round 2 re-confirmed the endpoints there
+  (`29.5`→0, `30.5`→0, `29.49`→1, `30.51`→1). Closed interval **[29.5, 30.5]**, both endpoints
+  inclusive, matching AC5, with `29.5`/`30.5` exactly representable in binary floating point so there is
+  no endpoint slop. This also closes by evidence the **new in-container `awk` dependency** Task 14
+  introduces — important because the unrun GPU step was the only place a missing `awk` would have shown.
+  Round 2 corrected its own round-1 wording: mawk and host awk are **not** identical — mawk FAILs on
+  `nan` where host awk PASSes. The difference runs in the safe direction, so nothing changes.
+
+  ↳ **Round 1's SUGGESTED (both verdicts, one root cause) — RESOLVED by `4143398`.** A bound rejection
+  produced FAIL with a **blank** detail (`awk` prints nothing, `grep -q` swallows the codec line, the
+  duration is consumed by a command substitution, `ffmpeg` runs at `-loglevel error`), so an operator
+  learned *that* the duration was wrong and never *what it was*. **This also made this block's own
+  step 6 unachievable** — it expects the rejected duration "in the printed detail", so the block's
+  snippet and its step 6 contradict each other; the fix resolves it in favour of the observable.
+  One clause added, the shape of the sibling sub-check one item earlier. Round 2 proved the `echo`
+  cannot mask a failure by testing the bug that was *not* written: chain rc is 0 in-range, 1
+  out-of-range, and 1 for a hypothetical echo-last ordering — so `echo`'s success never overrides
+  `awk`'s status, and `&&` short-circuiting means it never runs when an earlier link failed. Escaping
+  checked by printing what `sh -c` actually receives: **one physical line, zero stray backslashes**, on
+  both branches. PASS path leaks nothing (`grep -c 'duration:'` is 0 on every PASS case, 1 on FAIL).
+  Anchored contract **5** / unanchored 10 across all 18 runs.
+
+  ↳ **Security probed, clean.** An `sh -c` payload is a natural injection sink, so round 2 tested it:
+  `TRANSCODE_ENCODER` is only ever compared for equality and `ENC`/`PRESET` are literals on both
+  branches, so a hostile encoder value cannot reach the payload; `$dur` is external data but is a quoted
+  expansion never re-evaluated. Four hostile durations (`30.0; touch …`, `$(…)`, backticks, quote-break)
+  plus a hostile encoder — **no file created in any case**.
+
+  ↳ **PR findings carried (none blocking):** the block-vs-step-6 contradiction above; the DoD-0-3
+  heading still reads "with h264_nvenc" even when the CPU branch PASSes via `libx264` (deliberately
+  deferred — `ENC` is not assigned until the following line, and Task 15 rewrites this file);
+  **a real operator trap** — `TRANSCODE_ENCODER` is consumed as a two-way **flag**, not an encoder name,
+  so `hevc_nvenc` and `av1_nvenc` (both of which DoD-0-2 itself probes for) **silently WAIVE the
+  `[BLOCKING]` item and downgrade DoD-0-3 to `libx264`**, reproduced end to end — which is Task 12's
+  semantics faithfully mirrored, not invented here; the bound compares **lexicographically** for
+  digit-prefixed garbage (`2x`, `30.4xyz` PASS), unreachable from
+  `ffprobe -show_entries format=duration -of csv=p=0` which emits a decimal or `N/A`, with a
+  mawk-tested remedy for Task 15 (`d ~ /^[0-9]+(\.[0-9]+)?$/ && d+0>=29.5 && d+0<=30.5`) — note the
+  naive `d=d+0` coercion is **not** an improvement, it opens a `nan` hole on mawk; the codec-mismatch
+  path still yields a blank detail (pre-existing, different sub-path); and four NITS, all
+  repo-wins-locally conflicts on block-mandated text.
 
 ## Task 15 — `scripts/verify-phase0.sh`: DoD-0-4 exact bucket count (AC9)
 
