@@ -2166,36 +2166,73 @@ Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independ
 
 **Steps**
 
-- [ ] (Host, no Docker needed) `pnpm -r test`. Expect: 0 failing suites — unchanged from Task 25's own
+- [x] (Host, no Docker needed) `pnpm -r test`. Expect: 0 failing suites — unchanged from Task 25's own
       result; this amendment touches only `docker-compose.yml` and `scripts/verify-phase0.sh`, neither
       of which any test suite covers.
-- [ ] (Host, no Docker needed) `npx eslint . && npx prettier --check .`. Expect: exits 0 — Task 26
+- [x] (Host, no Docker needed) `npx eslint . && npx prettier --check .`. Expect: exits 0 — Task 26
       touches only YAML (re-covered here since `docker-compose.yml` is not `.prettierignore`d); Task 27
       touches only a shell file, outside both tools' file globs (Task 13's own NOTE-2: no `.sh` parser
       in either).
-- [ ] (Host, live stack, no GPU needed) Tear down any stack left from a prior task: `docker compose down -v`.
-- [ ] (Host, live stack, no GPU needed) `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml up -d --wait --wait-timeout 180`. Expect: exits 0 — with Task 26 and Task 27 both landed, all 7 long-running services (including CPU-fallback `transcoder` and now-healthy `nginx`) reach `healthy`. Caveat carried from plan `:1340`: on this host's compose v5.5.1, `--wait` **can exit 1 on an otherwise-healthy stack** — a race where the one-shot `minio-init` has already exited by the time `--wait` polls it, and `--wait` reports that as a failure even though `exited (0)` is `minio-init`'s correct terminal state. If this command exits non-zero, do not treat that alone as failure: run `docker compose ps` and decide from its output — all long-running services `healthy` and `minio-init` `Exited (0)` means the stack is actually up.
-- [ ] (Host, live stack, no GPU needed) `docker compose run --rm -T minio-init`. Expect: exits 0
+- [x] (Host, live stack, no GPU needed) Tear down any stack left from a prior task: `docker compose down -v`.
+- [x] (Host, live stack, no GPU needed) `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml up -d --wait --wait-timeout 180`. Expect: exits 0 — with Task 26 and Task 27 both landed, all 7 long-running services (including CPU-fallback `transcoder` and now-healthy `nginx`) reach `healthy`. Caveat carried from plan `:1340`: on this host's compose v5.5.1, `--wait` **can exit 1 on an otherwise-healthy stack** — a race where the one-shot `minio-init` has already exited by the time `--wait` polls it, and `--wait` reports that as a failure even though `exited (0)` is `minio-init`'s correct terminal state. If this command exits non-zero, do not treat that alone as failure: run `docker compose ps` and decide from its output — all long-running services `healthy` and `minio-init` `Exited (0)` means the stack is actually up.
+- [x] (Host, live stack, no GPU needed) `docker compose run --rm -T minio-init`. Expect: exits 0
       (idempotent — `mc mb --ignore-existing` per `scripts/minio-init.sh`, unchanged).
-- [ ] (Host, live stack, no GPU needed) `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh`.
+- [x] (Host, live stack, no GPU needed) `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh`.
       Expect: the full output shown above — five section-header lines, each immediately followed by its
       verdict line, plus the `passed 4, failed 0` tail — script exit code `0`. Paste the real output
       into the PR.
-- [ ] (Host, live stack, no GPU needed) `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml down -v`.
-- [ ] (Host, no Docker needed) Copy the PR-notes file before editing, since it is gitignored/untracked
+- [x] (Host, live stack, no GPU needed) `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml down -v`.
+- [x] (Host, no Docker needed) Copy the PR-notes file before editing, since it is gitignored/untracked
       and a `git diff` against it would print nothing (the `Exempt: docs` verification above):
       `BEFORE=$(mktemp) && cp docs/impl/M-platform-operations-US1-review/task-25-pr-notes.md "$BEFORE"` (keep `$BEFORE` set in the same shell for the diff step).
-- [ ] Append the two `## Findings` bullets shown above to
+- [x] Append the two `## Findings` bullets shown above to
       `docs/impl/M-platform-operations-US1-review/task-25-pr-notes.md` as new lines directly after the
       "Live-stack DoD-0-5 FAIL." bullet (current line 27) and before the blank line that precedes
       `## KB feedback` (current line 28) — the two FAIL bullets stay untouched; these two RESOLVED
       bullets are appended, not a replacement.
-- [ ] `diff -u "$BEFORE" docs/impl/M-platform-operations-US1-review/task-25-pr-notes.md`.
+- [x] `diff -u "$BEFORE" docs/impl/M-platform-operations-US1-review/task-25-pr-notes.md`.
       Expect: exactly the two RESOLVED bullets added, both after "Live-stack DoD-0-5 FAIL." and before
       `## KB feedback`. Paste the real diff into the PR (the `Exempt: docs` verification above).
-- [ ] (Belt-and-suspenders) `grep -n "RESOLVED (Amendment 2" -A1 docs/impl/M-platform-operations-US1-review/task-25-pr-notes.md`.
+- [x] (Belt-and-suspenders) `grep -n "RESOLVED (Amendment 2" -A1 docs/impl/M-platform-operations-US1-review/task-25-pr-notes.md`.
       Expect: both RESOLVED bullets print, positioned between the "Live-stack DoD-0-5 FAIL." bullet and
       the `## KB feedback` heading.
+
+Review: ✅ r1 — A3 PASS on both verdicts, independent opus reviewer. The first implementer attempt stalled and was re-dispatched. **AC23 was reached live for the first time.** On a GPU-less CPU-fallback stack, `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh` printed DoD-0-1 PASS, DoD-0-2 WAIVED, DoD-0-3 PASS, DoD-0-4 PASS, DoD-0-5 PASS, `passed 4, failed 0`, exit 0. The reviewer reproduced this on its own fresh `-p a3t28` stack, and `/scratch/phase0.mp4` was tagged `libx264` at 30.000000s. The PR-notes edit was verified by `diff -u` against the `mktemp` copy. SUGGESTED (outside this block's Files): the DoD-0-3 header at `scripts/verify-phase0.sh:72` always says `h264_nvenc`. The Dev directed a fix as Task 28b below. NOTEs for PR `## Findings`: DoD-0-2's `ffmpeg -encoders` grep would also match on the CPU image, so un-waived it could PASS falsely on a GPU-less host, and needs a real-encode probe on the GPU path. `--fresh` brings the stack up without the CPU override.
+
+## Task 28b — `scripts/verify-phase0.sh`: DoD-0-3 header names the encoder actually used (Dev-directed, from Task 28's A3 SUGGESTED)
+
+Dev-directed after Task 28's A3 (2026-09-24). The Dev chose a small direct task over a full `/dev-plan` amendment, so this block had no A2. The A3 on its diff still applies.
+
+**Files**
+
+- Modify: `scripts/verify-phase0.sh` (the DoD-0-3 section only)
+
+**Interfaces**
+
+- Current state (`scripts/verify-phase0.sh:72-77`):
+
+  ```bash
+  echo "DoD-0-3  encode a 30s clip with h264_nvenc"
+  if [ "${TRANSCODE_ENCODER:-h264_nvenc}" = "h264_nvenc" ]; then
+    ENC="h264_nvenc"; PRESET="p5"
+  else
+    ENC="libx264"; PRESET="veryfast"
+  fi
+  ```
+
+  The header is static, so on the CPU path (`TRANSCODE_ENCODER=libx264`) it prints `h264_nvenc` while the encode actually runs `libx264 -preset veryfast`.
+
+- Required state: move the `if … fi` block above the `echo`, and change the echo to `echo "DoD-0-3  encode a 30s clip with $ENC"`. Change nothing else: the `subcheck` call, `item_done`, other DoD items and the output format (AC19's 5-item structure) all stay byte-identical. With `TRANSCODE_ENCODER` unset or `h264_nvenc`, the header must still read exactly `DoD-0-3  encode a 30s clip with h264_nvenc` (regression).
+- Test harness (no stack needed, and no committed test file, consistent with how Tasks 11–15 verified this script): create a throwaway stub dir with `STUB=$(mktemp -d) && printf '#!/bin/sh\nexit 0\n' > "$STUB/docker" && chmod +x "$STUB/docker"`. Then run the script with that stub first on `PATH`. Every `docker` call exits 0 with no output, so the later DoD items may FAIL. That is fine, because only the DoD-0-3 header line is asserted. Wrap every run in a timeout (`timeout 60`, or on macOS the perl wrapper `to 60` if GNU `timeout` is absent).
+
+**Steps**
+
+- [ ] Red: `PATH="$STUB:$PATH" TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh 2>&1 | grep -x 'DoD-0-3  encode a 30s clip with libx264'`. Expect: no match, exit 1 (today's header says `h264_nvenc`). Paste the real output.
+- [ ] Regression baseline: `PATH="$STUB:$PATH" bash scripts/verify-phase0.sh 2>&1 | grep -x 'DoD-0-3  encode a 30s clip with h264_nvenc'`. Expect: one match, exit 0.
+- [ ] Make the change exactly as in Interfaces.
+- [ ] Green: re-run the red command. Expect: one match, exit 0. Re-run the regression command. Expect: one match, exit 0. Also run `PATH="$STUB:$PATH" TRANSCODE_ENCODER=h264_nvenc bash scripts/verify-phase0.sh 2>&1 | grep -x 'DoD-0-3  encode a 30s clip with h264_nvenc'`. Expect: exit 0.
+- [ ] A syntax check (`bash -n scripts/verify-phase0.sh`) exits 0, and `git diff` touches only the DoD-0-3 lines.
+- [ ] `pnpm -r test` and `npx eslint . && npx prettier --check .` both exit 0.
 
 ## A4 — whole-branch review (opus reviewer): branch does NOT yet fulfil the ticket
 
