@@ -143,6 +143,7 @@ services:
       timeout: 3s
       retries: 20
 
+  # quay.io, not Docker Hub, for this and minio-init: MinIO removed both Docker Hub repos.
   minio:
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     command: ["server", "/data", "--console-address", ":9001"]
