@@ -135,9 +135,14 @@ old names until explicitly pruned.
 Mitigation to document in the PR/README bring-up note (optional, not gated by
 any AC since AC12's own test methodology assumes a clean machine): before
 switching over, copy each volume's contents forward with a throwaway
-container run while the stack is stopped, e.g.
-`docker run --rm -v pgdata:/from -v myflix-postgres-data:/to alpine sh -c "cp -a /from/. /to/"`,
-repeated for `redisdata`→`myflix-redis-data` and `miniodata`→`myflix-minio-data`.
+container run while the stack is stopped. Compose resolves a named volume as
+`<project>_<name>`, not the bare key in this file — with `name: myflix`
+(top of this file) and `docker compose config --format json | jq '.volumes'`
+confirming the real names, that is
+`docker run --rm -v myflix_pgdata:/from -v myflix_myflix-postgres-data:/to alpine cp -a /from/. /to/`,
+repeated for `myflix_redisdata`→`myflix_myflix-redis-data` and
+`myflix_miniodata`→`myflix_myflix-minio-data`. A bare `-v pgdata:/from` would
+create a new, empty `pgdata` volume and copy nothing.
 Given `README.md:66-84` states this codebase is presently a skeleton with
 stubbed request handlers and no real user data yet, this is a low-probability
 risk today but should still be called out rather than silently accepted.

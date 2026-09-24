@@ -50,12 +50,25 @@ Minimum dependency versions (verified against the running host/containers at acc
 2. `docker compose up -d --wait --wait-timeout 180` — builds the FFmpeg image (source build, the single largest consumer of the 30-minute budget below) then starts all 8 services — the 7 long-running ones plus the one-shot `minio-init`, which creates the buckets and exits. `make up` is the day-to-day shortcut, but it omits `--wait`, so it does not enforce the 180-second bound below.
 3. `bash scripts/verify-phase0.sh` — expect PASS on all 5 items.
    **On the CPU-fallback branch, set the encoder on the script's own command line:** `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh`. That WAIVES DoD-0-2 and runs DoD-0-3 on `libx264`. The `TRANSCODE_ENCODER` in `infra/compose/docker-compose.cpu.yml` is scoped to the `transcoder` container and is invisible to the script, which never reads `.env` — so on a CPU-only host without it, DoD-0-2 and DoD-0-3 both **FAIL**. `make verify` is the same bare invocation and does not set it for you either.
-   **`--fresh` runs a bare `docker compose`, with no `-f` flags of its own:** on the CPU-fallback path, `export COMPOSE_FILE=docker-compose.yml:infra/compose/docker-compose.cpu.yml` before running `scripts/verify-phase0.sh --fresh`, or it brings the stack up without the CPU override.
+   **`--fresh` runs a bare `docker compose`, with no `-f` flags of its own:** on the CPU-fallback path, `export COMPOSE_FILE=docker-compose.yml:infra/compose/docker-compose.cpu.yml` before running `MYFLIX_ALLOW_WIPE=1 bash scripts/verify-phase0.sh --fresh`, or it brings the stack up without the CPU override. `--fresh` runs `docker compose down -v`, which deletes every named volume in the resolved project — it prints the project name and volume list first, then refuses with exit 2 unless `MYFLIX_ALLOW_WIPE=1` is set in the environment.
    **A WAIVED DoD-0-2 is not a pass.** It increments neither counter, so the run prints `passed 4, failed 0` and exits 0: a green exit does not prove NVENC. On the NVENC path, Phase 1 waits for DoD-0-2 to actually pass. On the CPU-fallback branch (Q11), Phase 1 may start once the script exits 0 with only DoD-0-2 WAIVED.
 
 **Time budget (NFR-47):** the whole clean-machine flow, image build included, must finish under **30 minutes**; `docker compose up -d --wait` alone must finish under its own 180-second `--wait-timeout`.
 
 **`docker-compose.yml` ownership (AC27, Q7):** this file is owned by the Project Owner. Any change to it, in any mission, updates `scripts/verify-phase0.sh` in the same commit and re-runs it; a green run is a merge condition.
+
+**Upgrading an existing stack:** skip this section entirely on a fresh machine — it only applies if `docker volume ls` already shows this project's volumes from before this branch. This branch renames the 3 data volumes: `pgdata`→`myflix-postgres-data`, `redisdata`→`myflix-redis-data`, `miniodata`→`myflix-minio-data`. Docker identifies a volume by name only, and Compose resolves each name as `<project>_<name>`. On a stack started before this branch (project `myflix` either way), the old volumes are `myflix_pgdata`, `myflix_redisdata`, `myflix_miniodata`; after this branch (`name: myflix` in `docker-compose.yml`), the new ones are `myflix_myflix-postgres-data`, `myflix_myflix-redis-data`, `myflix_myflix-minio-data`. Confirm the real names on your own host before running anything: `docker compose config --format json | jq '.volumes'` and `docker volume ls`. Renaming does not migrate data — Compose creates the new volume empty on the next `up`, and the old one is orphaned, not deleted.
+
+1. `docker compose down` (no `-v`) — stops the stack, keeps every existing volume intact.
+2. Copy each old volume's contents into its new one while nothing is running. `docker run -v <name>:/to` creates `<name>` automatically if it does not exist yet, so no separate `docker volume create` step is needed:
+   ```bash
+   docker run --rm -v myflix_pgdata:/from -v myflix_myflix-postgres-data:/to alpine cp -a /from/. /to/
+   docker run --rm -v myflix_redisdata:/from -v myflix_myflix-redis-data:/to alpine cp -a /from/. /to/
+   docker run --rm -v myflix_miniodata:/from -v myflix_myflix-minio-data:/to alpine cp -a /from/. /to/
+   ```
+3. `docker compose up -d --wait --wait-timeout 180` — brings the stack back up on the new volumes with the copied data.
+
+Exempt: docs — verified by a real round-trip of the same `docker run -v ... alpine cp -a /from/. /to/` form against disposable scratch volumes (create source, write a file, copy, read the file back from the destination, delete both), recorded in `docs/impl/M-platform-operations-US1-review/a5-fix-r1-report.md`.
 
 ## Bring-up
 
