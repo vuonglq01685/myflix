@@ -1015,12 +1015,76 @@ short-circuiting — failure injected at every link, with the call count proving
 - Produces for later tasks: nothing consumed elsewhere.
 
 **Steps**
-- [ ] (Host, no Docker needed) Failing test: `grep -q 'myflix-(source|media|images|staging)' scripts/verify-phase0.sh`. Expect: fails — the current line only greps for the single literal string `myflix-media`.
-- [ ] Replace the DoD-0-4 `subcheck` command with the exact-count version above.
-- [ ] Re-run Step 1's grep. Expect: passes.
-- [ ] (Host, no Docker needed) `bash -n scripts/verify-phase0.sh`. Expect: exits 0.
+- [x] (Host, no Docker needed) Failing test: `grep -q 'myflix-(source|media|images|staging)' scripts/verify-phase0.sh`. Expect: fails — the current line only greps for the single literal string `myflix-media`.
+- [x] Replace the DoD-0-4 `subcheck` command with the exact-count version above.
+- [x] Re-run Step 1's grep. Expect: passes.
+- [x] (Host, no Docker needed) `bash -n scripts/verify-phase0.sh`. Expect: exits 0.
 - [ ] (Host, live stack, no GPU needed — `minio`/`minio-init` carry no GPU reservation) `docker compose up -d minio && docker compose run --rm -T minio-init` once manually to confirm the real output shape of `mc ls local` matches what the `awk` parser above expects (each bucket line's last field is the bucket name with a trailing `/`, which the `sub()` call above strips before the count); if `mc ls`'s column layout differs from this, re-check the anchor first — the field selector (`$NF`) is confirmed correct against real `mc` behavior. Then re-run `bash scripts/verify-phase0.sh`. Expect: `DoD-0-4  PASS`.
 - [ ] (Host, live stack, no GPU needed) Negative-path sanity check: temporarily add a 5th bucket via `docker compose exec -T minio mc mb --ignore-existing local/phase0-extra` (or run `minio-init` against a MinIO with a stray extra bucket), re-run the script, expect `DoD-0-4  FAIL`; then remove the extra bucket (`docker compose exec -T minio mc rb local/phase0-extra`) and confirm it returns to `PASS`.
+
+      ↳ **Both left unticked and unrun** — they need a live stack, which is blocked by the two
+      deps-stage defects (`apps/api/Dockerfile`, `infra/ffmpeg/Dockerfile:69-71`). Substituted with a
+      stub `docker` answering `compose run --rm -T minio-init` in `minio-init.sh`'s real output shape
+      (`buckets ready:` then `[ts] 0B <name>/`), labelled as a substitute. A3 r2 ran **nine** bucket
+      scenarios through the whole script that way, asserting the invocation fired each time.
+
+
+Review: ✅ r2 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 2 rounds,
+no BLOCKER in either. Commits `51fd26d` (the task) + `5b73902` (round-1 fixes). Bucket names checked
+against source rather than assumed: `scripts/minio-init.sh:7`'s
+`for bucket in myflix-source myflix-media myflix-images myflix-staging` matches the block and the regex.
+Both rounds ran the **whole script** under a stub, never a fragment, and asserted the two mandated
+figures — exactly **5** anchored `^DoD-0-[1-5]  (PASS|FAIL|WAIVED)$` and **zero** `unbound variable` —
+on every one of nine scenarios, with the script running to completion each time.
+
+  ↳ **Round 1 found a real false PASS in the AC whose whole point is exactness — FIXED by `5b73902`.**
+  The required-name regex anchored only the end, so a bucket merely *ending with* a required name counted
+  as it: the set `{myflix-source, myflix-media, myflix-images, evil-myflix-staging}` **passed** DoD-0-4
+  although `myflix-staging` was absent **and** an unexpected bucket was present. Hyphens are legal in S3
+  bucket names, so that is reachable, not contrived. A/B proven across the fix on the identical set:
+  `51fd26d` → `DoD-0-4 PASS`, `5b73902` → `DoD-0-4 FAIL` (`required=3 total=4`).
+  **Round 1's second finding also fixed:** a FAIL printed the label and nothing else, so "extra bucket",
+  "required bucket missing" and "minio-init errored" were indistinguishable (docker's stderr goes to
+  `/dev/null` a line above). Four failure modes are now separable — `required=4 total=5`,
+  `required=3 total=4`, `required=3 total=3`, `required=0 total=0` — and the `echo` cannot mask a
+  failure (it is the second-to-last line; the assertion is last and decides the status), with no leak on
+  the PASS path because `subcheck` reads `$out` only in its `else` arm.
+
+  ↳ **CRITICAL COUPLING — do not "optimise" the `^` back out.** Round 1 separately noted that on the
+  live path this check runs the **creator** (`docker compose run --rm -T minio-init`), and
+  `scripts/minio-init.sh:7-9` does `mc mb --ignore-existing` for all four names under `set -eu` *before*
+  printing `buckets ready:`. So "required bucket absent with the marker present" is unreachable today —
+  which means the false-PASS set above is not live-reachable either. Round 2's adjudication: **the `^`
+  anchor is a prerequisite FOR the suggested remedy, not a standalone fix.** Swapping the data source to
+  the read-only `docker compose exec -T minio mc ls local` is exactly what makes "required name absent"
+  reachable, and doing that swap **without** `^` would reintroduce the false PASS. Both halves must land
+  together. PR finding.
+
+  ↳ **Disagreement adjudicated in the orchestrator's favour.** Round 1's scenario table listed
+  "duplicate `myflix-media` + 3" as FAIL; the orchestrator measured PASS and declined to add a dedup,
+  judging the case unreachable. Round 2 confirms: **the orchestrator's measurement is right and round 1's
+  row was wrong** — mechanically, `grep -c` counts matching *lines*, so a duplicated name contributes two
+  matches and `n` reaches 4 while `myflix-staging` is absent. The unreachability also holds on both tested
+  grounds: `minio-init.sh` ends with `mc ls local`, an alias-root `ListBuckets` whose names are unique by
+  construction; `mc`'s diagnostics go to stderr, discarded by `2>/dev/null`, and `-T` keeps the streams
+  demultiplexed so they cannot re-enter stdout; no pre-marker line contains `buckets ready:`, so the
+  marker cannot latch early; and no line ends in `.../myflix-<name>/`, so `$NF` plus the slash-strip
+  cannot map two lines onto one name. Residual direction is safe regardless — an unexpected post-marker
+  line inflates `total` and FAILs. **A `sort -u` dedup would be speculative (YAGNI) and is not added.**
+
+  ↳ **Round 1's third finding (the inner `out` name shadowing the outer tempfile variable) was
+  deliberately left**, and round 2 confirmed that judgement and proved the shadow inert three ways: the
+  file contains zero `export` statements; the `bash -c` body has zero single quotes inside its
+  single-quoted body so the parent never expands `$out`; and functionally, DoD-0-5's FAIL detail still
+  writes *after* DoD-0-4 has run, which requires the outer tempfile to still be valid. Keeping a
+  zero-risk cosmetic rename out of a correctness commit was the right call on a file where a prior fix
+  aborted the whole script by touching more than necessary. PR finding with the other naming nits.
+
+  ↳ **NOTE — the two-count pair is a proxy for set equality.** `n == 4 && total == 4` is correct for
+  every reachable input but infers set equality from two cardinalities. A one-line invariant would be
+  immune to the entire class (anchor bugs, duplicates, extra-line inflation):
+  `[ "$(printf "%s\n" "$names" | sort | tr "\n" " ")" = "myflix-images myflix-media myflix-source myflix-staging " ]`.
+  Not requested and not blocking — recorded as the honest answer to what a dedup would have bought.
 
 ## Task 16 — AC10: anonymous-GET-403 probe substitution
 
