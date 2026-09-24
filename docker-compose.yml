@@ -28,9 +28,11 @@ services:
       MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET}
       # Keep envsubst away from nginx's own $variables.
       NGINX_ENVSUBST_FILTER: "MEDIA_SIGNING_SECRET"
+    tmpfs:
+      - /etc/nginx/conf.d
     volumes:
       - ./infra/nginx/templates:/etc/nginx/templates:ro
-      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/conf.d/00-limits.conf:/etc/nginx/conf.d/00-limits.conf:ro
       - ./infra/nginx/snippets:/etc/nginx/snippets:ro
       - nginx-cache:/var/cache/nginx
     depends_on:
@@ -38,7 +40,7 @@ services:
       web: { condition: service_started }
       minio: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/nginx-health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
       interval: 10s
       timeout: 3s
       retries: 5
