@@ -1998,22 +1998,24 @@ Both defects change AC-visible behaviour (DoD-0-1, DoD-0-5), so neither Task 26 
 
 **Steps**
 
-- [ ] (Host, live stack, no GPU needed) Failing check, observed red at Task 25's step 3:
+- [x] (Host, live stack, no GPU needed) Failing check, observed red at Task 25's step 3:
       `docker compose down -v; docker compose up -d --wait --wait-timeout 180 nginx`. Expect: non-zero
       exit — `nginx` exits 1 immediately (envsubst's read-only-filesystem write failure) and `--wait`
       fails fast, well before the 180s timeout.
-- [ ] (Host, live stack, no GPU needed) Confirm the specific cause:
+- [x] (Host, live stack, no GPU needed) Confirm the specific cause:
       `docker compose logs nginx 2>&1 | grep -F "Read-only file system"`. Expect: prints the line
       containing `can't create /etc/nginx/conf.d/myflix.conf: Read-only file system`.
-- [ ] Replace `docker-compose.yml:24-44`'s nginx service block with the fixed block above (add
+- [x] Replace `docker-compose.yml:24-44`'s nginx service block with the fixed block above (add
       `tmpfs:`, narrow the second `volumes:` entry to `00-limits.conf` only, change the healthcheck
       host to `127.0.0.1`).
-- [ ] (Host, no Docker needed) `npx prettier --check docker-compose.yml`. Expect: exits 0.
-- [ ] (Host, live stack, no GPU needed) `docker compose down -v; docker compose up -d --wait --wait-timeout 180 nginx`. Expect: exits 0.
-- [ ] (Host, live stack, no GPU needed) `docker compose ps --format '{{.Service}} {{.Health}}' | grep '^nginx '`. Expect: `nginx healthy`.
-- [ ] (Host, live stack, no GPU needed) `docker compose exec -T nginx wget -qO- http://127.0.0.1/nginx-health`. Expect: prints `ok`, exits 0.
-- [ ] (Optional, host, live stack, no GPU needed) `docker compose exec -T nginx wget -qO- http://localhost/nginx-health`. Expect: connection refused/timed out — confirms cause (2) (`localhost` resolving to `::1` against the template's IPv4-only `listen 80;`) independently of cause (1), even though the deployed fix already points the healthcheck itself at `127.0.0.1`.
-- [ ] (Host, live stack, no GPU needed) `docker compose down -v`.
+- [x] (Host, no Docker needed) `npx prettier --check docker-compose.yml`. Expect: exits 0.
+- [x] (Host, live stack, no GPU needed) `docker compose down -v; docker compose up -d --wait --wait-timeout 180 nginx`. Expect: exits 0.
+- [x] (Host, live stack, no GPU needed) `docker compose ps --format '{{.Service}} {{.Health}}' | grep '^nginx '`. Expect: `nginx healthy`.
+- [x] (Host, live stack, no GPU needed) `docker compose exec -T nginx wget -qO- http://127.0.0.1/nginx-health`. Expect: prints `ok`, exits 0.
+- [x] (Optional, host, live stack, no GPU needed) `docker compose exec -T nginx wget -qO- http://localhost/nginx-health`. Expect: connection refused/timed out — confirms cause (2) (`localhost` resolving to `::1` against the template's IPv4-only `listen 80;`) independently of cause (1), even though the deployed fix already points the healthcheck itself at `127.0.0.1`.
+- [x] (Host, live stack, no GPU needed) `docker compose down -v`.
+
+Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independent opus reviewer. Commit `02af56a`. The reviewer re-ran both checks in isolated project `a3t26`. Red at `874193f`: exit 1, `can't create /etc/nginx/conf.d/myflix.conf: Read-only file system`. Green at HEAD: `nginx healthy`, `127.0.0.1/nginx-health` gives `ok` while `localhost` is refused (the IPv6 cause, confirmed independently). `conf.d` holds only `00-limits.conf` (read-only) plus the rendered `myflix.conf`, and the host repo gets no generated file. For PR `## Findings`: this block's own `docker compose down -v` steps deleted the default project's **new-named** volumes, which held only this session's test data. The old-named `myflix_pgdata`/`myflix_miniodata`/`myflix_redisdata` (flagged in Task 18) survive.
 
 ## Task 27 — `scripts/verify-phase0.sh`: DoD-0-5 resolves `prisma` via `pnpm --filter @myflix/db exec` instead of `npx` (AC16, AC19, AC23 — DoD-0-5; routed from Task 25 step 3 / D-I)
 
