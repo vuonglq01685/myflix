@@ -402,7 +402,7 @@ Review: ✅ r2 — A3 clean (spec compliance + code quality), independent review
 - Produces for later tasks: nothing consumed by a later task; verified by Task 18's T25 (Task 18's own Interfaces/Steps run T25 across all three Pino services — `api`, `web`, `transcoder` — explicitly, plus T26 for the 4 image-default services).
 
 **Steps**
-- [ ] (Host, no Docker needed) Failing test — create `apps/web/src/lib/logger.test.ts`:
+- [x] (Host, no Docker needed) Failing test — create `apps/web/src/lib/logger.test.ts`:
   ```ts
   import { describe, expect, it, vi } from 'vitest';
   import { logger } from './logger';
@@ -422,13 +422,54 @@ Review: ✅ r2 — A3 clean (spec compliance + code quality), independent review
   });
   ```
   Run `pnpm --filter @myflix/web test`. Expect: fails — `./logger` does not exist yet (`apps/web/src/lib/logger.ts` is not created).
-- [ ] Add `"pino": "^9.14.0"` to `apps/web/package.json` `dependencies`; run `pnpm install` at the repo root.
-- [ ] Add the `resolve: { alias: { pino: 'pino/browser' } }` block to `apps/web/vitest.config.ts` with the exact content above (test-only; does not touch `logger.ts`).
-- [ ] Create `apps/web/src/lib/logger.ts` with the exact content above.
-- [ ] Re-run `pnpm --filter @myflix/web test`. Expect: passes — verified empirically this session (see Interfaces): `1 passed (1)`, and the rest of the `apps/web` suite is unaffected by the alias.
-- [ ] Apply both `middleware.ts` changes above (the `logger.info` call and the widened `matcher`).
-- [ ] Change `apps/web/Dockerfile` line 20's `CMD` as specified above.
+- [x] Add `"pino": "^9.14.0"` to `apps/web/package.json` `dependencies`; run `pnpm install` at the repo root.
+- [x] Add the `resolve: { alias: { pino: 'pino/browser' } }` block to `apps/web/vitest.config.ts` with the exact content above (test-only; does not touch `logger.ts`).
+- [x] Create `apps/web/src/lib/logger.ts` with the exact content above.
+- [x] Re-run `pnpm --filter @myflix/web test`. Expect: passes — verified empirically this session (see Interfaces): `1 passed (1)`, and the rest of the `apps/web` suite is unaffected by the alias.
+- [x] Apply both `middleware.ts` changes above (the `logger.info` call and the widened `matcher`).
+- [x] Change `apps/web/Dockerfile` line 20's `CMD` as specified above.
 - [ ] (Host, live stack, no GPU needed) `docker compose up -d --build web` (plus its deps), then wait 3 healthcheck intervals (~30s), then `docker compose logs web --tail 20 | jq .` — expect every line parses; at most the first 3 lines (the one-time Next.js banner, if still within the tail window) may not — if more than 3 non-JSON lines appear, re-check the `CMD` change landed in the built image (`docker compose build web` again).
+
+      ↳ **Left unticked: run in substituted form, not as written.** `web` has
+      `depends_on: { api: { condition: service_healthy } }` and `api`'s image is
+      unbuildable (the `apps/api/Dockerfile` `deps` stage omits `packages/storage`,
+      `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND`), so `docker compose up -d --build web` cannot
+      run. Substituted with `docker compose build web` plus a standalone `docker run`,
+      which did observe the JSON log line. **Compose-level T25
+      (`docker compose logs web --tail 20 | jq .`) is therefore still owed to Task 18.**
+      A3 r3 independently closed the one claim no unit test can reach, from the built
+      artifact rather than the report: `.next/server/src/middleware.js` ships pino's
+      *browser* build inline (`{browser:{asObject:!0,write:a=>{console.log(JSON.stringify(a))}}}`)
+      with zero hits for `worker_threads`, `thread-stream`, `sonic-boom`, `pino/file` or
+      `on-exit-leak-free`, and `middleware-manifest.json`'s first matcher is
+      `"originalSource": "/"`, so the widened matcher is compiled into the real
+      production route matcher.
+
+Review: ✅ r3 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 3 rounds,
+no BLOCKER in any round. Commits `9f2dfca` + `af73ddc` + `2e8e562`. **Every prior SUGGESTED is resolved
+and independently verified; nothing left open.** Round 2's SUGGESTED (the new middleware test asserted
+nothing about ordering, because its fixture carried cookies so neither redirect branch was reachable —
+proven by a surviving mutant) was fixed by `2e8e562` adding a cookie-less case. Round 3 did not take the
+fixer's word for it: it re-ran round 2's exact mutation and the mutant now **dies** on the new test
+(`expected "log" to be called 1 times, but got 0 times`), then ran two further mutations of its own —
+moving the log call *inside* the `!hasSession` block kills the **authenticated** case instead (so the two
+cases are complementary, not redundant), and dropping `method` from the payload kills **both** (so the
+assertions bite on field names, not merely on "something logged"). All three prescribed-verbatim files
+were checked mechanically by extracting the block's own code fences and diffing: `logger.ts`,
+`logger.test.ts` and `vitest.config.ts` are VERBATIM MATCHes. The `no-console` suppression was confirmed
+load-bearing — stripping the comment makes `cmd.lint` fail outright with
+`7:7 error Unexpected console statement` — and is correctly one-line, reasoned, not file-scoped.
+Also newly cleared: Task 9's matcher widening is safe against Task 4's `web` healthcheck, which landed
+after round 2 — `/` now 307s to `/login` instead of `/browse`, `307 < 400` keeps the check green, and
+`/login` is outside the matcher so there is no redirect loop.
+
+  ↳ **Plan-text defect, no code action (A3 r3 NOTE 8).** This block asks for the `logger.info` call
+  "as the first statement inside `middleware(request)`", but the mandated call text references
+  `pathname`, which does not exist until `const { pathname } = request.nextUrl;`. The instruction is
+  literally unsatisfiable as written. `apps/web/src/middleware.ts:11` places the call immediately after
+  the destructure — the only valid reading, and the compiled bundle confirms it still logs before the
+  cookie reads. The defect is in the plan's wording, not the implementation; goes to the PR as a
+  plan-quality finding.
 
 ## Task 10 — CPU-fallback ladder cap + encoder-aware FFmpeg args (AC21) — **conditional, dispatched with an explicit gate value**
 
@@ -515,11 +556,63 @@ Review: ✅ r2 — A3 clean (spec compliance + code quality), independent review
 - Produces for later tasks: the `$FRESH` variable, which Task 12 (WAIVED support) and Task 14 (CPU-branch encoder awareness) do not directly consume but must not clobber; and the flag-parsing scaffold Task 12's `--fresh`-mode output format change builds on.
 
 **Steps**
-- [ ] (Host, no Docker needed for this specific check) Failing test: `grep -q -- '--fresh' scripts/verify-phase0.sh`. Expect: fails — no such string in the current 41-line file.
-- [ ] Insert the `FRESH` flag-parsing and guarded conditional `down -v` / `up -d --wait` block exactly as shown, right after the `pass=0; fail=0` line.
-- [ ] Re-run Step 1's grep. Expect: passes.
-- [ ] (Host, no Docker needed) `bash -n scripts/verify-phase0.sh` (shell syntax check only). Expect: exits 0, no syntax errors.
+- [x] (Host, no Docker needed for this specific check) Failing test: `grep -q -- '--fresh' scripts/verify-phase0.sh`. Expect: fails — no such string in the current 41-line file.
+- [x] Insert the `FRESH` flag-parsing and guarded conditional `down -v` / `up -d --wait` block exactly as shown, right after the `pass=0; fail=0` line.
+- [x] Re-run Step 1's grep. Expect: passes.
+- [x] (Host, no Docker needed) `bash -n scripts/verify-phase0.sh` (shell syntax check only). Expect: exits 0, no syntax errors.
 - [ ] (GPU host) `bash scripts/verify-phase0.sh --fresh` end to end at least once after Tasks 4/5/6 have landed (needs 7-healthy to be reachable). Expect: the script reaches a rebuilt, healthy stack before printing any `DoD-0-N` line — confirm by timestamping: the `docker compose up -d --wait` call must complete (no timeout) before the first `echo "DoD-0-1..."` line executes.
+
+      ↳ **Left unticked and unrun.** No GPU on this host, and independently blocked by the
+      `apps/api/Dockerfile` `deps`-stage gap (copies only `packages/shared`, `packages/db`,
+      `apps/api` manifests — `packages/storage/package.json` absent, so `pnpm install` in that
+      stage cannot resolve `"@myflix/storage": "workspace:*"` from `apps/api/package.json:17`).
+      A3 re-verified that blocker first-hand rather than accepting it. **Until an owning task
+      exists, AC19 part 1 never gets its end-to-end proof on any host, GPU or not.**
+
+Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 1 round,
+no BLOCKER. Commit `f9cdbe3`, `1 file changed, 9 insertions(+), 0 deletions`. The reviewer reproduced
+every runnable step, extracted this block's own fenced snippet and diffed it against the committed
+lines 8-14 (**IDENTICAL, byte for byte**), and did not settle for grep on the thing that matters most —
+it proved the ordering **at runtime** with a stubbed `docker` on `PATH`, showing
+`down -v` → `up -d --wait` → `DoD-0-1` in one stdout stream, so round-3 finding S2 (teardown with no
+rebuild before the checks, guaranteeing five false FAILs) is genuinely avoided. It confirmed the `||`
+guard is load-bearing by forcing the stub's `up` to fail: `--fresh bring-up failed`, exit 1, **zero**
+`DoD-0-N` lines printed — and verified the guard's own justification against the file's only `set` line
+(`set -uo pipefail`, no `set -e` anywhere). It proved the no-flag path intact **and** its counterfactual
+(the same construct without `${1:-}` really does die with `$1: unbound variable`), which matters because
+`Makefile:28` and `package.json:20` both invoke the script with no arguments. It also confirmed
+`--wait`/`--wait-timeout` exist in the installed compose v5.5.1, so the flag is not a typo that would
+make `--fresh` fail unconditionally.
+
+  ↳ **Two SUGGESTED findings REASSIGNED to Task 12, not closed here** — the reviewer's own recommended
+  route for both, because this block prescribes the silent flag-parsing form verbatim (so changing it
+  here would contradict approved plan text) and **Task 12 owns the next change to `--fresh` flag
+  handling**. Both are orchestrator-authorised additions to Task 12's scope, on the same footing as the
+  `middleware.test.ts` addition authorised during Task 9; they are carried in Task 12's dispatch and its
+  A3 must confirm them, so they are owned, not dropped.
+  1. **`scripts/verify-phase0.sh:9` — unknown arguments are silently ignored.** Measured:
+     `bash scripts/verify-phase0.sh --frsh` runs full normal mode — no teardown, no warning,
+     `passed 0, failed 9` — indistinguishable from an intentional no-flag run. So a fat-fingered flag
+     yields a stale-stack run that the operator believes was a from-empty rebuild. Against
+     `common/coding-style.md`'s "validate at system boundaries … fail fast with clear error messages";
+     argv is a boundary.
+  2. **`scripts/verify-phase0.sh:2` — header comment now incomplete, staleness newly caused by
+     `f9cdbe3`.** It still reads "Run after `docker compose up -d`", but `--fresh` performs its own
+     bring-up, so that no longer describes the new mode.
+
+  ↳ **Carried notes for whoever next owns this file (Tasks 12-15), so none is "hardened" by mistake:**
+  `:3`'s `# Exits non-zero on the first failure` is **factually wrong and was already wrong at
+  `edea769`** — `check()` accumulates into `$pass`/`$fail`, every check runs, and the script exits via
+  `[ "$fail" -eq 0 ]`; correctly untouched by Task 11. `:12`'s `docker compose down -v` is
+  **deliberately unguarded** and must stay so — a `down` against an already-stopped stack legitimately
+  returns non-zero and `up -d --wait` is the real gate, so do not "fix" it into a spurious failure.
+  `FRESH`'s UPPER_SNAKE_CASE conflicts with `ts/coding-style.md` (which reserves that casing for true
+  constants) and with the file's own lowercase script-scope style (`pass`, `fail`, `label`), but
+  **convention loses by design**: this block publishes `$FRESH` as an interface Tasks 12 and 14 must not
+  clobber, so renaming would break a downstream contract — logged as a PR finding rather than resolved.
+  Finally, **`--fresh` has no discoverable entrypoint**: `Makefile:28` and `package.json:20` both call
+  the script with no arguments and neither exposes the new mode, so AC19's `--fresh` is reachable only
+  by reading the source — outside this block's Files list, owed to Task 17/handover.
 
 ## Task 12 — `scripts/verify-phase0.sh`: `WAIVED` outcome + 5-line item-level format (AC19 part 2, AC23 part 1)
 
