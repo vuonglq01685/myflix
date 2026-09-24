@@ -86,7 +86,13 @@ subcheck "smoke encode + duration bound" docker compose exec -T transcoder sh -c
 item_done "DoD-0-3"
 
 echo "DoD-0-4  four MinIO buckets exist"
-subcheck "buckets" bash -c "docker compose run --rm -T minio-init 2>/dev/null | grep -q myflix-media"
+subcheck "exactly 4 buckets" bash -c '
+  out=$(docker compose run --rm -T minio-init 2>/dev/null)
+  names=$(printf "%s\n" "$out" | awk "/buckets ready:/{found=1; next} found && NF{n=\$NF; sub(/\/\$/,\"\",n); print n}")
+  n=$(printf "%s\n" "$names" | grep -cE "myflix-(source|media|images|staging)$")
+  total=$(printf "%s\n" "$names" | grep -cE ".")
+  [ "$n" -eq 4 ] && [ "$total" -eq 4 ]
+'
 item_done "DoD-0-4"
 
 echo "DoD-0-5  migrations applied"
