@@ -1852,13 +1852,22 @@ D-F originally routed a `.gitignore` change here (remove `.github/`, keep `.clau
 
 **Steps**
 
-- [ ] (Host, no Docker needed) `pnpm -r test`. Expect: 0 failing suites, including Task 21's new `args.spec.ts` tests.
-- [ ] (Host, no Docker needed) `npx eslint . && npx prettier --check .`. Expect: exits 0 — Task 23's `.prettierignore` addition and file restoration keep this green; no other task in this amendment touches a linted/formatted file's behavior.
+- [x] (Host, no Docker needed) `pnpm -r test`. Expect: 0 failing suites, including Task 21's new `args.spec.ts` tests.
+- [x] (Host, no Docker needed) `npx eslint . && npx prettier --check .`. Expect: exits 0 — Task 23's `.prettierignore` addition and file restoration keep this green; no other task in this amendment touches a linted/formatted file's behavior.
 - [ ] (Host, live stack, no GPU needed) Re-run Task 12's step 7 as specified above. Paste the real output into the PR.
-- [ ] (Host, live stack, no GPU needed) Confirm Task 14's `DoD-0-3 PASS` line from the same run. Paste it into the PR.
-- [ ] (Host, live stack, no GPU needed) Re-run Task 16's three steps as specified above (including the `probe.txt` cleanup). Paste the real output into the PR.
-- [ ] (Host, live stack, no GPU needed) Re-run Task 22's probe command as specified above. Paste the real per-bucket output into the PR.
-- [ ] Assemble this amendment's own PR notes exactly as itemized in Interfaces' "PR notes to assemble" bullet above, split into `## Findings` (D-A, D-B, D-C, D-D, D-E, D-F-reversed, N1) and `## KB feedback` (OPEN(BA)-6, OPEN(BA)-7, D-G's OPEN(BA)-1 withdrawal). Do not drop any of them silently — same discipline as Task 18's `## KB feedback`/`## Findings` split.
+
+      ↳ **Left unticked: ran, and FAILED for real.** `DoD-0-2 WAIVED` and `DoD-0-3 PASS` (libx264) came out as expected, and
+      `transcoder` turned healthy on the CPU path, so B2 + Task 20 work live. **But `DoD-0-1 FAIL` and `DoD-0-5 FAIL`, so the script exits 1.** A3 reproduced
+      both independently. nginx: the `conf.d:ro` mount breaks envsubst, and the `localhost` healthcheck resolves to `::1` against an IPv4-only `listen 80`.
+      prisma: `npx prisma` runs from `/app`, where no bin exists. Both have been present since merge-base `007108e` and were exposed by `d112125`.
+      Fixes are outside this task's Files list, so they are routed to `/dev-plan` Amendment 2. AC23 stays unmet until then.
+
+- [x] (Host, live stack, no GPU needed) Confirm Task 14's `DoD-0-3 PASS` line from the same run. Paste it into the PR.
+- [x] (Host, live stack, no GPU needed) Re-run Task 16's three steps as specified above (including the `probe.txt` cleanup). Paste the real output into the PR.
+- [x] (Host, live stack, no GPU needed) Re-run Task 22's probe command as specified above. Paste the real per-bucket output into the PR.
+- [x] Assemble this amendment's own PR notes exactly as itemized in Interfaces' "PR notes to assemble" bullet above, split into `## Findings` (D-A, D-B, D-C, D-D, D-E, D-F-reversed, N1) and `## KB feedback` (OPEN(BA)-6, OPEN(BA)-7, D-G's OPEN(BA)-1 withdrawal). Do not drop any of them silently — same discipline as Task 18's `## KB feedback`/`## Findings` split.
+
+Review: ✅ r1 — A3 PASS on both verdicts (spec compliance + quality), independent opus reviewer. The first attempt stalled and was re-dispatched with timeouts. It changes no files. Passed live: Task 16's three steps (`status 403`, so AC10/T14 is verified for the first time) and Task 22's probe. `cmd.test` and `cmd.lint` are green. PR notes are complete. The reviewer's SUGGESTEDs on the notes were applied: the two failures were added to `## Findings`, and "pre-existing" was re-scoped to merge-base. The **branch-level BLOCKER** (DoD-0-1/DoD-0-5) goes to Amendment 2.
 
 ## A4 — whole-branch review (opus reviewer): branch does NOT yet fulfil the ticket
 
