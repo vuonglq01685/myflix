@@ -70,6 +70,8 @@ No NVIDIA GPU on this machine (a Mac, or CI):
 make up-cpu              # libx264 fallback — NFR-15/NFR-16 will not be met
 ```
 
+`make up-cpu` drops the GPU device reservation via `infra/compose/docker-compose.cpu.yml`'s `devices: !reset []` override (`deploy.resources.reservations` merges to `{}`) — confirm with `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml config --format json | jq '.services.transcoder.deploy.resources.reservations'` — so `transcoder` starts without an NVIDIA Container Toolkit on this path.
+
 | URL                         | What                                      |
 | --------------------------- | ----------------------------------------- |
 | http://localhost            | app (everything goes through nginx)       |
