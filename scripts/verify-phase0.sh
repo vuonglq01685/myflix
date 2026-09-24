@@ -4,6 +4,15 @@
 set -uo pipefail
 
 pass=0; fail=0
+
+FRESH=0
+[ "${1:-}" = "--fresh" ] && FRESH=1
+
+if [ "$FRESH" -eq 1 ]; then
+  docker compose down -v
+  docker compose up -d --wait --wait-timeout 180 || { echo "--fresh bring-up failed"; exit 1; }
+fi
+
 check() {
   local label="$1"; shift
   if "$@" >/tmp/phase0.out 2>&1; then
