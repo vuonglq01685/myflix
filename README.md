@@ -51,7 +51,7 @@ Minimum dependency versions (verified against the running host/containers at acc
 3. `bash scripts/verify-phase0.sh` — expect PASS on all 5 items.
    **On the CPU-fallback branch, set the encoder on the script's own command line:** `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh`. That WAIVES DoD-0-2 and runs DoD-0-3 on `libx264`. The `TRANSCODE_ENCODER` in `infra/compose/docker-compose.cpu.yml` is scoped to the `transcoder` container and is invisible to the script, which never reads `.env` — so on a CPU-only host without it, DoD-0-2 and DoD-0-3 both **FAIL**. `make verify` is the same bare invocation and does not set it for you either.
    **`--fresh` runs a bare `docker compose`, with no `-f` flags of its own:** on the CPU-fallback path, `export COMPOSE_FILE=docker-compose.yml:infra/compose/docker-compose.cpu.yml` before running `scripts/verify-phase0.sh --fresh`, or it brings the stack up without the CPU override.
-   **A WAIVED DoD-0-2 is not a pass.** It increments neither counter, so the run prints `passed 4, failed 0` and exits 0: a green exit does not prove NVENC. DoD-0-2 is the project-blocking item — do not start Phase 1 until it actually passes.
+   **A WAIVED DoD-0-2 is not a pass.** It increments neither counter, so the run prints `passed 4, failed 0` and exits 0: a green exit does not prove NVENC. On the NVENC path, Phase 1 waits for DoD-0-2 to actually pass. On the CPU-fallback branch (Q11), Phase 1 may start once the script exits 0 with only DoD-0-2 WAIVED.
 
 **Time budget (NFR-47):** the whole clean-machine flow, image build included, must finish under **30 minutes**; `docker compose up -d --wait` alone must finish under its own 180-second `--wait-timeout`.
 
@@ -142,7 +142,9 @@ are verified to produce an empty diff. Use `migrate deploy`, never
 
 ## Next step
 
-Phase 0 (roadmap §3, 3 days): get `make verify` fully green. Do not start
-Phase 1 until DoD-0-2 passes — if NVENC is unavailable in Docker, the
-contingency is `infra/ffmpeg/cpu-fallback.Dockerfile` with a 720p/480p ladder
-and reset expectations on processing time.
+Phase 0 (roadmap §3, 3 days): get `make verify` fully green. On the NVENC
+path, Phase 1 waits for DoD-0-2 to pass. On the CPU-fallback branch (Q11),
+Phase 1 may start once the script exits 0 with only DoD-0-2 WAIVED. If NVENC
+is unavailable in Docker, the contingency is
+`infra/ffmpeg/cpu-fallback.Dockerfile` with a 720p/480p ladder and reset
+expectations on processing time.

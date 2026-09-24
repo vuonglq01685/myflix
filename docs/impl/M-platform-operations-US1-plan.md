@@ -244,6 +244,11 @@ Review: ✅ r2 — A3 clean (spec compliance + code quality), independent review
 - [ ] (GPU host) If the same `--wait` run above times out specifically because `minio-init` (a `restart: "no"`, no-healthcheck, exit-0 one-shot with no service `depends_on`s it as `service_completed_successfully`) is never recognized as satisfied — design §7 Risk 7, unconfirmed on this repo's Compose version — add to `api`'s `depends_on:` block (line 76–79) a fourth entry: `minio-init: { condition: service_completed_successfully }`, rebuild, and retry. If `--wait` succeeds without this, do not add it (YAGNI — this design explicitly does not wire it speculatively).
 - [ ] (GPU host) T20b: `docker compose stop redis`, wait one healthcheck interval (≥10s), `docker compose ps --format '{{.Service}} {{.Health}}'`. Expect `redis` and `transcoder` both leave `healthy` (transcoder depends on Redis for its own ping check). `docker compose start redis` to restore.
 
+      ↳ **Update (2026-09-24):** The two steps above were mislabelled `(GPU host)` — neither needs a GPU,
+      only a live stack. The `minio-init` dependency step was implemented by Task 29 (`api`'s
+      `depends_on` now includes `minio-init: { condition: service_completed_successfully }`; live-verified:
+      `up --wait` exits 0, 2/2 runs). T20b was run live on the CPU-fallback path by A4 r3.
+
 Review: ✅ r2 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 2 rounds,
 no BLOCKER in either. Commits `edea769` (the task) + `cc1501d` (round-1 fix). Round 1 rebuilt the parent
 state in scratch and reproduced RED itself, then parsed this block's two fenced YAML snippets
@@ -668,6 +673,11 @@ plan-quality finding.
       manifest-copy defect at `infra/ffmpeg/cpu-fallback.Dockerfile:20-23` (routed to `/dev-plan`). The
       `redis-tools` half needs no change: already on the `apt-get` line since `d053851` (A3 r1 confirmed `:13`).
 
+      ↳ **Update (2026-09-24):** Task 20 fixed the manifest-copy defect in `infra/ffmpeg/cpu-fallback.Dockerfile`
+      (and the other two Dockerfiles), and Task 28 built and used the CPU-fallback `transcoder` image live —
+      `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh` passed on the resulting CPU-fallback stack.
+      The GPU-host half of this step (building/verifying the GPU image) remains unrun for lack of a GPU host.
+
 Review: ✅ r1 — A3 clean on both verdicts (spec compliance PASS + code quality PASS), independent opus reviewer.
 Dispatched **TRIGGERED** on 2026-09-24 by the Project Owner, via the Dev. Commit `2edbca3`. The reviewer checked the
 red step on `5fd9599` in a throwaway worktree and got `TS2554` in shared and exactly 3 failing transcoder tests. It
@@ -731,6 +741,12 @@ For the PR's `## Findings`:
       stage cannot resolve `"@myflix/storage": "workspace:*"` from `apps/api/package.json:17`).
       A3 re-verified that blocker first-hand rather than accepting it. **Until an owning task
       exists, AC19 part 1 never gets its end-to-end proof on any host, GPU or not.**
+
+      ↳ **Update (2026-09-24):** Unblocked. Task 20 fixed the `apps/api/Dockerfile` deps-stage gap, and
+      Task 29 fixed `--fresh`'s remaining defect (`api` now waits for `minio-init`, so `up --wait` exits 0).
+      `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh --fresh` now reaches a rebuilt, healthy
+      stack and prints `passed 4, failed 0`, exit 0 (Task 29's Review record). AC19 part 1 has its
+      end-to-end proof on the CPU-fallback path; the GPU/NVENC path remains unrun for lack of a GPU host.
 
 Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 1 round,
 no BLOCKER. Commit `f9cdbe3`, `1 file changed, 9 insertions(+), 0 deletions`. The reviewer reproduced
@@ -853,6 +869,12 @@ by reading the source — outside this block's Files list, owed to Task 17/hando
       `ffmpeg -hide_banner -encoders` invocations under `TRANSCODE_ENCODER=libx264` vs 3 ungated), that
       `passed 4, failed 0` exits **0**, and that a waive neither inflates `$pass` nor masks a real
       failure (WAIVED + one genuine FAIL → `passed 3, failed 1`, exit 1).
+
+      ↳ **Update (2026-09-24):** Task 10 was in fact dispatched **TRIGGERED** (commit `2edbca3`), Task 20
+      fixed the deps-stage manifest-copy defect in all three Dockerfiles, and Task 28 ran this step live
+      on the CPU-fallback stack — `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh` printed
+      `DoD-0-2  WAIVED` and `passed 4, failed 0`, exit 0. The Task-10 gate this note describes as
+      unsupplied is resolved.
 
 Review: ✅ r2 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 2 rounds,
 no BLOCKER in either. Commits `a19a397` (the task) + `a8d789f` (round-1 fix). Round 1 executed the
@@ -1051,6 +1073,12 @@ still running — the block's "wait for it first" premise does not apply. **Do n
       Substituted with a stub `docker`/`ffmpeg`/`ffprobe` harness that runs the real bash logic and
       asserts the **underlying invocations**, not just the printed verdict.
 
+      ↳ **Update (2026-09-24):** Task 10 was in fact dispatched **TRIGGERED** (commit `2edbca3`), Task 20
+      fixed the deps-stage manifest-copy defect in all three Dockerfiles, and Task 28 ran step 7 live on
+      the CPU-fallback stack — `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh` printed
+      `DoD-0-2  WAIVED` and `DoD-0-3  PASS`, exit 0. Only step 7's Task-10 gate is resolved; steps 5 and 6
+      (GPU-only, real NVENC) remain unrun for lack of a GPU host.
+
 Review: ✅ r2 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 2 rounds,
 no BLOCKER in either. Commits `1a1fb96` (the task) + `4143398` (round-1 fix). Both rounds built their
 own logging stubs and asserted the **work** rather than the printing: `ENC`/`PRESET` genuinely reach
@@ -1211,6 +1239,10 @@ Not requested and not blocking — recorded as the honest answer to what a dedup
 > the three deps-stage defects recorded under Task 4's Steps. Substituting a different image would deviate
 > from approved text, so nothing was run. **AC10 therefore reaches handover NOT VERIFIED.** Unblocked by
 > the same `/dev-plan` task that owns `apps/api/Dockerfile`; this one needs only the `api` half.
+>
+> **Update (2026-09-24):** AC10/T14 was verified live by Task 25 — the Node `fetch` probe (steps below)
+> printed `status 403` and exited 0, so AC10 is no longer NOT VERIFIED (Task 25's Review record: "Passed
+> live: Task 16's three steps ... so AC10/T14 is verified for the first time").
 
 **Files**
 
@@ -1527,6 +1559,13 @@ annotate. **Resume-state anchors are intact and were verified byte-identical:** 
       re-confirmed the Task 3 data-identity risk is **live on this host right now** — the pre-rename
       `myflix_pgdata`/`myflix_redisdata` exist with no post-rename counterpart.
 
+      ↳ **Update (2026-09-24):** A4 r3 ran AC11, AC12, AC13, AC17 and T20b (Task 4) live on the CPU-fallback
+      path — none of the five needed a GPU, only a live stack, so the "every one needs a GPU" framing
+      above was wrong for those five. AC16 (offline clean-machine bring-up, host-internet-disconnected)
+      and the AC1/NFR-47 30-minute clean-machine timing run remain genuinely not run — for that reason (no
+      clean-machine bring-up/timing cycle has been performed yet), not because either needs a GPU. AC4,
+      AC6-runtime, AC8 and AC25 still need real NVENC hardware.
+
 - [x] Run the OPEN(BA)-5 corrected `git grep` command above; paste its real 8-hit output into the PR.
 - [x] Run `find apps/api/src -name '*.module.ts' | wc -l` and `ls apps/web/src/app/`; confirm `14`/`13` and the 3 route groups — this is AC24's own T35 pass criterion (Interfaces above), paste into the PR's AC24 evidence, not only under OPEN(BA)-3. Also run `grep -c '^model ' packages/db/prisma/schema.prisma` and `grep -c 'CREATE TABLE' packages/db/prisma/migrations/*/migration.sql`; paste both results into the PR under OPEN(BA)-3 (the separate, conflicting table-count clause).
 - [x] Assemble the `## KB feedback` PR section with D1, D2, OPEN(BA)-1 through OPEN(BA)-5 (all bullets above, verbatim) and the AC22 env-var-count discrepancy note. Separately, assemble the `## Findings` PR section with Task 1's npm→pnpm substitution note, Task 1's narrowed-lint-rule list, and Task 9's one-line `no-console` exception. Do not drop any of them silently, and do not merge the two sections into one — this is a DoD requirement per the design, `docs/conventions/ts.md:67-69`, and the context cache's own instruction.
@@ -1539,6 +1578,12 @@ the branch and must not be softened in the PR: verified-on-a-running-stack = 0.*
 OPEN(BA)-5. **Not verified at all:** AC1, AC2, AC4, AC5, AC6-runtime, AC8, AC9, AC10, AC11, AC12, AC13,
 **AC14**, AC16, AC17's live half, AC18, AC19, AC21, AC23, AC25, and the AC1/NFR-47 clean-machine timing run. The
 assembled `## KB feedback` and `## Findings` PR sections are in `task-18-report.md`.
+
+↳ **Update (2026-09-24):** This tally is stale — Tasks 25–29 verified AC10 and DoD-0-1, 0-3, 0-4, 0-5
+live on the CPU path (DoD-0-2 was WAIVED, never a PASS); A4 r3 ran AC11, AC12, AC13, AC17 and T20b live on the
+CPU-fallback path. For the current per-AC state, see the per-AC table in the A4 r3 record (Review record
+below, row "A4 r3": "A4 r3 — per-AC table" (persisted in the A4 section)). The final tally is produced at handover, not by
+this task.
 
 ↳ **This task caught a gap in the tracked record and it has been closed.** Tasks 10 and 16 carried no
 annotation explaining their blank state, unlike every ticked task, so their reasons existed only in the
@@ -1556,7 +1601,7 @@ Dev decisions (binding, 2026-09-24) closing the A4 findings below. Each decision
 - **D-D** — S2/T13: standalone coverage task, `mc anonymous get local/<bucket>` for all 4 buckets. → Task 22.
 - **D-E** — S8: add `docs/conventions/*` (plus a `!docs/conventions/*.local.md` negation) to `.prettierignore`; restore the 12 package-owned files `f883f56` reformatted. → Task 23.
 - **D-F** — `.gitignore`: REVERSED (Dev, 2026-09-24, per `docs/impl/M-platform-operations-US1-review/a2-amend1-r1.md`) — keep both `.github/` and `.claude/` ignored, unchanged. CI workflows under `.github/workflows/` stay deliberately blocked from being committed until a separate CI ticket addresses them; the PR `## Findings` section must record this as a deliberate choice, not an oversight. → Decided D-F (reversed), no task (Task 24 withdrawn).
-- **D-G** — AC26 `infra/compose/` clause: Dev chose **PASS trivially** (plan `:311` reading). This overrides design `:471`/`:629` (which say T34 FAILs); `design.md:71` stands, `:471`/`:629` are superseded by this Dev decision, and OPEN(BA)-1 is withdrawn (Task 25's PR KB-feedback must say so). No task — a record, not code.
+- **D-G** — AC26 `infra/compose/` clause, the "no duplicates under `infra/compose/`" clause only: Dev chose **PASS trivially** (plan `:311` reading). This overrides design `:471`/`:629` (which say T34 FAILs); `design.md:71` stands, `:471`/`:629` are superseded by this Dev decision. D-G does **not** decide OPEN(BA)-1 (D1's root-location clause for `docker-compose.cpu.yml`, cited by AC21 and AC26) — that clause **stays open**; D-N (Amendment 3) corrects the earlier record, which wrongly said D-G withdrew it. No task — a record, not code.
 
 ## Task 19 — B2 fix: reset the CPU-fallback GPU device reservation + correct README's Mac/CI note (routed from A4 B2)
 
@@ -1654,7 +1699,7 @@ Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independ
   - These three already work for `libx264` as-is (a bitrate/maxrate/bufsize target with no explicit `-crf`/`-cq` is a standard, valid `libx264` rate-control mode, not a degraded one).
   - `KEYFRAME_ARGS` call: compute `const keyframeArgs = KEYFRAME_ARGS(gop);`, find `-forced-idr`'s index, and slice it off for non-CUDA: `const forcedIdrIndex = keyframeArgs.indexOf("-forced-idr"); args.push(...(useCuda || forcedIdrIndex === -1 ? keyframeArgs : keyframeArgs.slice(0, forcedIdrIndex)));` — this reads the flag's position rather than hardcoding an array length, and does not modify `packages/shared/src/media/gop.ts` (keeps `KEYFRAME_ARGS`'s existing shape and its other consumers untouched).
 - Fix, `buildPreviewArgs`: change the hardcoded `"-preset", "p4",` line to `"-preset", useCuda ? "p4" : "veryfast",` (same `"veryfast"` citation as above).
-- **OPEN(BA)-7** (next free `OPEN(BA)` number after Task 22's OPEN(BA)-6; not decided here, per this phase's "never invent a standard value" rule): omitting `-rc`/`-cq:v` for `libx264` (rather than inventing a CRF/quality number) means the CPU-fallback ladder encodes at a fixed bitrate target only, with no explicit perceptual-quality knob. No source in the context cache, the ticket, or an existing plan decision gives a libx264 CRF value for any rung. If AC21's CPU fallback needs a real quality target beyond bitrate/maxrate/bufsize, the Dev/BA must supply one (e.g. a per-rung CRF table) — Task 25's PR `## KB feedback` section records this as OPEN(BA)-7, alongside D-C's routing; this task does not invent one.
+- **SA — KB amend proposal** (`transcoding-pipeline-spec`; labelled `OPEN(BA)-7` at dispatch time, per this phase's "never invent a standard value" rule — **relabelled by D-L, Amendment 3: this is an SA question, not a BA one**): omitting `-rc`/`-cq:v` for `libx264` (rather than inventing a CRF/quality number) means the CPU-fallback ladder encodes at a fixed bitrate target only, with no explicit perceptual-quality knob. No source in the context cache, the ticket, or an existing plan decision gives a libx264 CRF value for any rung. D-L's SA decision: keep bitrate-only (bitrate, maxrate and bufsize, as this task leaves it), and carry this as a KB amend proposal in the PR's `## KB feedback` — Task 25's PR `## KB feedback` section records it, alongside D-C's routing; this task does not invent a value.
 - Byte-identical regression requirement (per the Dev decision): the default `h264_nvenc` path must be unaffected — `preset` still resolves to `"p5"`, `-rc vbr`, `-cq:v:${i}`, and `-forced-idr 1` are all still emitted exactly as before.
 - Produces for later tasks: nothing consumed elsewhere; this closes the gap Task 10's `Review:` note left open. Task 14's `scripts/verify-phase0.sh` encoder-aware preset swap is unaffected — it is a separate shell-script code path, not wired to this file (plan `:614`, Task 10's own Interfaces already establishes this non-overlap).
 
@@ -1728,6 +1773,9 @@ Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independ
   ```
   **Dev decision (2026-09-24, `a2-amend1-r1.md`):** on the pinned `quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z`, `mc anonymous get` never renders the word `none` — `mc anonymous get --help` lists only `[private, public, download, upload]` as possible renderings, and a bucket set with `mc anonymous set none` reports the exact line `` Access permission for `local/<bucket>` is `private` `` (measured this session, exit 0). The Dev accepts `private` as this pinned `mc` build's rendering of `none`, so the guard above matches on `` is `private` `` rather than the literal (never-printed) word `none`. Expect: one full `Access permission for ...` line per bucket, then `T13: all 4 buckets report the private access line`, exit 0. Anything else (a different policy word, or a connection failure) surfaces as a non-zero exit, per the `case` guard.
 - **OPEN(BA)-6** (next free `OPEN(BA)` number — `OPEN(BA)-1..5` already used in Task 18/design §5): ticket T13 (`M-platform-operations-US1.md:282`) and AC10 (`:67`) literally require the anonymous policy read to be `none`; the pinned `mc` client never prints that word for this call, only `private` (evidence above). Ask the BA to amend T13/AC10's literal wording to match the pinned `mc`'s actual output, or to confirm `private` is an accepted synonym. Carried verbatim into Task 25's PR notes (`## KB feedback` alongside D1/D2/OPEN(BA)-1..5).
+  ↳ **Update (2026-09-24, D-M, Amendment 3):** the Dev judges `private` to be the pinned `mc`'s rendering
+  of `none`, with the same behaviour (T14 returns 403). This stays in `## KB feedback` only as a
+  non-blocking wording note on T13/AC10 for the BA, not a blocking defect.
 - Needs `minio` + `minio-init`'s image only (both public, pre-built, no custom Dockerfile) — does **not** need Task 20's fix (`api`'s/`transcoder`'s custom images are not involved) and does **not** need a GPU.
 - Produces for later tasks: nothing; consumed by Task 25's evidence-gathering step (same shape as Task 16).
 
@@ -1844,9 +1892,9 @@ D-F originally routed a `.gitignore` change here (remove `.github/`, keep `.clau
     - D-F (reversed, no task, Task 24 withdrawn): `.gitignore` keeps both `.github/` and `.claude/` ignored, unchanged — this is a deliberate choice, not an oversight; CI workflows under `.github/workflows/` stay blocked from being committed until a separate CI ticket addresses them.
     - N1: the `kb init` refresh of `docs/conventions/` (all 17 files, verbatim upstream `strata-kb 1.2.0` templates) rode along in commit `53bd099` on no task's Files list — a legitimate mechanical refresh, not authorship, per A4's N1 (a one-line record, not a revert).
   - `## KB feedback` (questions and withdrawals for the BA, alongside D1/D2/OPEN(BA)-1..5 from Task 18):
-    - OPEN(BA)-6 (Task 22): the pinned `mc anonymous get` never renders the literal word `none` for a bucket set to `none`, only `private` — ask the BA to amend T13/AC10's literal wording to match the pinned `mc`'s actual output, or confirm `private` is an accepted synonym.
-    - OPEN(BA)-7 (Task 21): no source in the context cache, the ticket, or an existing plan decision gives a libx264 CRF/quality value for the CPU-fallback ladder's non-NVENC rungs — if AC21's CPU fallback needs a real quality target beyond bitrate/maxrate/bufsize, the Dev/BA must supply one.
-    - D-G: AC26's `infra/compose/` clause — Dev chose **PASS trivially** (plan `:311` reading), overriding design `:471`/`:629`; `design.md:71` stands, `design.md:471`/`:629` are superseded by this Dev decision; **OPEN(BA)-1 is withdrawn**.
+    - OPEN(BA)-6 (Task 22): the pinned `mc anonymous get` never renders the literal word `none` for a bucket set to `none`, only `private` — non-blocking wording note (D-M, Amendment 3): the Dev judges `private` equivalent to `none` (same behaviour, T14 returns 403); ask the BA to amend T13/AC10's literal wording to match the pinned `mc`'s actual output, or confirm `private` is an accepted synonym.
+    - SA — KB amend proposal (`transcoding-pipeline-spec`, Task 21; labelled OPEN(BA)-7 at dispatch time, relabelled per D-L, Amendment 3 — an SA question, not a BA one): libx264 quality knob for the CPU-fallback ladder; current code is bitrate-only (bitrate, maxrate, bufsize) — no source in the context cache, the ticket, or an existing plan decision gives a CRF/quality value for any rung.
+    - D-G: AC26's `infra/compose/` clause, the "no duplicates under `infra/compose/`" clause only — Dev chose **PASS trivially** (plan `:311` reading), overriding design `:471`/`:629`; `design.md:71` stands, `design.md:471`/`:629` are superseded by this Dev decision; **OPEN(BA)-1 is still open** (D1's root-location clause — D-N, Amendment 3, corrects the earlier record, which wrongly said D-G withdrew it).
 - Produces: nothing consumed elsewhere; this is Amendment 1's terminal task.
 - Not a TDD exemption per `docs/tdd-exemptions.md` — no file changes; not an `Exempt:` line for the same reason Task 18 gives (this task runs the amendment's verification surface rather than exempting from one).
 
@@ -1866,7 +1914,7 @@ D-F originally routed a `.gitignore` change here (remove `.github/`, keep `.clau
 - [x] (Host, live stack, no GPU needed) Confirm Task 14's `DoD-0-3 PASS` line from the same run. Paste it into the PR.
 - [x] (Host, live stack, no GPU needed) Re-run Task 16's three steps as specified above (including the `probe.txt` cleanup). Paste the real output into the PR.
 - [x] (Host, live stack, no GPU needed) Re-run Task 22's probe command as specified above. Paste the real per-bucket output into the PR.
-- [x] Assemble this amendment's own PR notes exactly as itemized in Interfaces' "PR notes to assemble" bullet above, split into `## Findings` (D-A, D-B, D-C, D-D, D-E, D-F-reversed, N1) and `## KB feedback` (OPEN(BA)-6, OPEN(BA)-7, D-G's OPEN(BA)-1 withdrawal). Do not drop any of them silently — same discipline as Task 18's `## KB feedback`/`## Findings` split.
+- [x] Assemble this amendment's own PR notes exactly as itemized in Interfaces' "PR notes to assemble" bullet above, split into `## Findings` (D-A, D-B, D-C, D-D, D-E, D-F-reversed, N1) and `## KB feedback` (OPEN(BA)-6, OPEN(BA)-7 (relabelled SA KB-amend proposal per D-L), D-G's AC26 `infra/compose/` decision — later corrected, D-N reinstates OPEN(BA)-1 as open). Do not drop any of them silently — same discipline as Task 18's `## KB feedback`/`## Findings` split.
 
 Review: ✅ r1 — A3 PASS on both verdicts (spec compliance + quality), independent opus reviewer. The first attempt stalled and was re-dispatched with timeouts. It changes no files. Passed live: Task 16's three steps (`status 403`, so AC10/T14 is verified for the first time) and Task 22's probe. `cmd.test` and `cmd.lint` are green. PR notes are complete. The reviewer's SUGGESTEDs on the notes were applied: the two failures were added to `## Findings`, and "pre-existing" was re-scoped to merge-base. The **branch-level BLOCKER** (DoD-0-1/DoD-0-5) goes to Amendment 2.
 
@@ -2435,12 +2483,14 @@ Exempt: docs — verified by `grep -c '%%TODO' docs/decisions/phase0-encoder.md`
 
 **Steps**
 
-- [ ] Edit `phase0-encoder.md` as specified, then run the `%%TODO` grep and paste its output.
-- [ ] Edit the two README sentences as specified. `npx prettier --check README.md` exits 0.
-- [ ] Update the plan notes listed in Interfaces, each with a dated `↳ Update (2026-09-24):` line.
-- [ ] Fix D-G and every "OPEN(BA)-1 withdrawn" claim. Apply the D-L and D-M relabels. Paste `grep -n 'OPEN(BA)-1\|OPEN(BA)-6\|OPEN(BA)-7'` output.
-- [ ] Apply the PR-notes edits with the `mktemp` copy, and paste the `diff -u`.
-- [ ] `npx eslint . && npx prettier --check .` exits 0.
+- [x] Edit `phase0-encoder.md` as specified, then run the `%%TODO` grep and paste its output.
+- [x] Edit the two README sentences as specified. `npx prettier --check README.md` exits 0.
+- [x] Update the plan notes listed in Interfaces, each with a dated `↳ Update (2026-09-24):` line.
+- [x] Fix D-G and every "OPEN(BA)-1 withdrawn" claim. Apply the D-L and D-M relabels. Paste `grep -n 'OPEN(BA)-1\|OPEN(BA)-6\|OPEN(BA)-7'` output.
+- [x] Apply the PR-notes edits with the `mktemp` copy, and paste the `diff -u`.
+- [x] `npx eslint . && npx prettier --check .` exits 0.
+
+Review: ✅ r2 — A3 clean on both verdicts (spec compliance PASS + quality PASS), independent opus reviewer. It ran in parallel with Task 31 and was left uncommitted until review. Round 1 found a BLOCKER: Task 18's tally credited AC12/AC13/AC17/T20b to the wrong source and counted WAIVED DoD-0-2 as verified. It also found a SUGGESTED: an in-place rewording of Task 18's `Review:` line. Both were fixed. Round 2 re-checked every new statement against the plan's own records. `%%TODO` count is 0, no "OPEN(BA)-1 withdrawn" claim remains, and prettier is clean on all 4 files. NOTE-1 (AC11 missing from the tally update) was resolved by the orchestrator: A4 r3's per-AC table recorded AC11 as verified-live. NOTE: the Task 18 update does not list AC18's step. Task 31 owns AC18.
 
 ## A4 — whole-branch review (opus reviewer): branch does NOT yet fulfil the ticket
 
@@ -2467,7 +2517,7 @@ Fixed by mirroring Task 4's own change, with a comment naming the inheritance. *
 unverifiable here:** neither transcoder image has ever been built, so "`redis-tools` provides
 `redis-cli`" is asserted from the package name rather than observed.
 
-### S2 — **T13 has no coverage or acknowledgement anywhere.** OPEN
+### S2 — **T13 has no coverage or acknowledgement anywhere.** OPEN → RESOLVED (Task 22)
 
 Ticket `:282`: `| T13 | Đọc anonymous policy của cả 4 bucket | Cả 4 trả none | AC10 |` — read the
 anonymous policy of all four buckets and confirm each returns `none`. Measured: **T13 appears zero
@@ -2529,7 +2579,7 @@ cosmetic one. Needs a Dev decision.
 
 → Decided D-F (reversed), no task.
 
-### B2 — BLOCKER, found by A4 round 2: **AC23 is still unreachable on the CPU path.** OPEN, routed to `/dev-plan`
+### B2 — BLOCKER, found by A4 round 2: **AC23 is still unreachable on the CPU path.** OPEN, routed to `/dev-plan` → RESOLVED (Task 19)
 
 B1's fix (`d053851`) repaired the CPU transcoder's missing `redis-cli`, but it is **necessary and not
 sufficient**. `infra/compose/docker-compose.cpu.yml:10-13` tries to drop the GPU requirement with
@@ -2595,6 +2645,41 @@ The defect is in the **manifest-copy block** feeding `pnpm install` in each.
 The six orchestrator-authorised additions each trace to an AC or a review finding. The five sequential
 rewrites of `scripts/verify-phase0.sh` left every earlier task's constraint intact in the **end state**,
 verified rather than inferred from the chain.
+
+### A4 r3 — per-AC table (2026-09-24, at `83c43aa`, before Amendment 3)
+
+This is the table the A4 r3 opus reviewer produced from its own live CPU-fallback runs (project `a4r3`, no GPU). It is persisted here because review
+artefacts are gitignored. It predates Amendment 3: Task 29 later fixed AC1 and AC19's `--fresh`, Task 31 owns AC18, and Task 30 fixed AC21's decision doc.
+
+| AC   | Status at A4 r3                                                                   | Evidence / reason                                                                                                                     |
+| ---- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | not verified; fails literally (later fixed by Task 29)                            | 7 healthy live on the CPU path, but `up --wait` exited 1. GPU path and 30-minute timing not run                                       |
+| AC2  | verified live                                                                     | Exactly 7 running, `minio-init` exited 0                                                                                              |
+| AC3  | verified live                                                                     | Rendered ports match Q3. In-network probe reached postgres, redis and minio                                                           |
+| AC4  | not verified, reason recorded                                                     | Needs a GPU                                                                                                                           |
+| AC5  | libx264 part verified live; NVENC part not verified                               | Needs a GPU for NVENC                                                                                                                 |
+| AC6  | verified static (build time)                                                      | Task 20 image: `n6.1` plus the 4 configure flags. Runtime check needs a GPU                                                           |
+| AC7  | verified static                                                                   | Configure flags plus license decision doc                                                                                             |
+| AC8  | verified static, plus live check that the 6 other services have no `/dev/nvidia0` | `nvidia-smi` and host versions need a GPU host                                                                                        |
+| AC9  | verified live                                                                     | Exactly 4 buckets                                                                                                                     |
+| AC10 | verified live                                                                     | Anonymous GET returns 403. Policy renders `private` (D-M)                                                                             |
+| AC11 | verified live                                                                     | psql as `myflix`; `\dt` shows 19 tables (OPEN(BA)-3); migrate runs at start; "Database schema is up to date!"; works from an empty DB |
+| AC12 | verified live                                                                     | Probe table row and staging file survive `down`/`up`; 3 named volumes                                                                 |
+| AC13 | verified live                                                                     | `appendonly yes`; list length is 1 after a Redis restart                                                                              |
+| AC14 | 7 healthchecks present; literal commands deviate (OPEN(BA)-2, OPEN(BA)-4)         | Stopping Redis turns `transcoder` unhealthy, verified live                                                                            |
+| AC15 | verified static                                                                   | `.env` gitignored; `.env.example` has placeholders only; T21 over-matches (OPEN(BA)-5)                                                |
+| AC16 | not verified                                                                      | Offline bring-up never run. Earlier "(GPU host)" label was wrong                                                                      |
+| AC17 | verified live                                                                     | Only `*:80` on the LAN; 3000, 4000 and 9001 bound to 127.0.0.1                                                                        |
+| AC18 | not verified; failed literally (owned by Task 31)                                 | 15/113 `api` lines and 8 `web` lines were not JSON                                                                                    |
+| AC19 | default mode verified live; `--fresh` failed (later fixed by Task 29)             |                                                                                                                                       |
+| AC20 | verified static                                                                   | 8 version rows plus bring-up steps in README                                                                                          |
+| AC21 | partly                                                                            | Code unit-tested. Decision doc placeholders fixed by Task 30. Root path deviates (D1, OPEN(BA)-1)                                     |
+| AC22 | verified static plus live bring-up                                                | 45 variables                                                                                                                          |
+| AC23 | verified live                                                                     | WAIVED plus 4 PASS, exit 0, reproduced                                                                                                |
+| AC24 | verified static                                                                   | T35 passes; OPEN(BA)-3 on the table count                                                                                             |
+| AC25 | not verified, reason recorded                                                     | Needs a GPU                                                                                                                           |
+| AC26 | tags verified static (0 `:latest`, both `RELEASE.*`)                              | Root location deviates (D1, OPEN(BA)-1)                                                                                               |
+| AC27 | verified static                                                                   | Ownership rule in README                                                                                                              |
 
 ## Review record
 

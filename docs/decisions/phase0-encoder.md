@@ -1,12 +1,14 @@
 # Phase 0 decision: switch to the CPU-fallback (libx264) encoder
 
-- **Decision date:** %%TODO(PO)%%
-- **Decision:** the shared 1-day NVENC budget (Q12, ticket `:379`) covering
-  AC4 + AC5 + AC8 was exhausted without a working NVENC path. Per AC21
-  (ticket `:78`), the Project Owner switches the transcoder to the CPU
+- **Decision date:** 2026-09-24
+- **Decision:** the Project Owner chose the CPU fallback (gate TRIGGERED) on
+  2026-09-24 because no NVIDIA GPU host was available to spend the shared
+  1-day NVENC budget (Q12, ticket `:379`) covering AC4 + AC5 + AC8 on. Per
+  AC21 (ticket `:78`), the Project Owner switches the transcoder to the CPU
   fallback: `docker-compose.cpu.yml` + `infra/ffmpeg/cpu-fallback.Dockerfile`,
   encoding with `libx264` instead of `h264_nvenc`.
-- **Which AC(s) failed:** %%TODO(PO)%%
+- **Which AC(s) failed:** none — AC4, AC5 and AC8 were never attempted,
+  because no NVIDIA GPU host was available to run them.
 
 ## Ladder cap
 
