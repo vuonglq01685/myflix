@@ -578,7 +578,7 @@ plan-quality finding.
 > task's result, and the TRIGGERED branch was not speculatively implemented — which is what this block
 > requires. **AC21 therefore reaches handover NOT VERIFIED**, and this is a Dev/Project Owner decision,
 > not a blocked dependency: the gate depends on AC4/AC5/AC8's real outcome on a GPU host, which is in
-> turn blocked by the two deps-stage defects recorded under Task 4's Steps.
+> turn blocked by the three deps-stage defects recorded under Task 4's Steps.
 >
 > Note the gate reaches beyond this task: one step each in **Task 12** and **Task 14** is also
 > Task-10-gated, and both were left unrun for this same reason. Everything else in those two tasks is
@@ -897,7 +897,7 @@ close) the carried "`--fresh` has no discoverable entrypoint" finding still owed
 - [ ] (GPU host) Bring the full stack up healthy (`docker compose up -d --wait --wait-timeout 180`, reusing Task 4's confirmed-healthy configuration). Run `bash scripts/verify-phase0.sh`. Expect: `DoD-0-1  PASS`.
 
       ↳ **Steps 4, 5 and 6 left unticked and unrun** — no GPU, and independently blocked by the two
-      deps-stage defects (`apps/api/Dockerfile`, `infra/ffmpeg/Dockerfile:69-71`, both omitting
+      deps-stage defects (`apps/api/Dockerfile:7-10`, `infra/ffmpeg/Dockerfile:69-72`, `infra/ffmpeg/cpu-fallback.Dockerfile:20-23`, all three omitting
       `packages/storage/package.json`). Host-only stub substitutes run and labelled as substitutes.
       A3 r3 did reach real docker for the parts that can be: `docker compose ps --format
       "{{.Service}} {{.Health}}"` renders exactly the shape the grep expects (raw bytes
@@ -1010,7 +1010,8 @@ still running — the block's "wait for it first" premise does not apply. **Do n
 - [ ] (Host, live stack via CPU-fallback compose, no GPU — only if Task 10 was triggered) `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh` (exported on the invoking shell, not `.env` — see Task 12's Interfaces for why `.env` alone does not reach this script). Expect: `DoD-0-2  WAIVED` (from Task 12) and `DoD-0-3  PASS` (this task, via `libx264`/`veryfast`), overall script exit `0`.
 
       ↳ **Steps 5, 6 and 7 left unticked and unrun.** 5 and 6 need a GPU, and are independently
-      blocked by the two deps-stage defects (`apps/api/Dockerfile`, `infra/ffmpeg/Dockerfile:69-71`,
+      blocked by the three deps-stage defects (`apps/api/Dockerfile:7-10`, `infra/ffmpeg/Dockerfile:69-72`,
+      `infra/ffmpeg/cpu-fallback.Dockerfile:20-23`,
       both omitting `packages/storage/package.json`), confirmed still present and untouched. Step 7 is
       **additionally Task-10-gated**, and Task 10's TRIGGERED / NOT TRIGGERED value is a Project Owner
       decision that **has not been supplied** — so its governing input does not exist, independently of
@@ -1106,7 +1107,8 @@ repo-wins-locally conflicts on block-mandated text.
 - [ ] (Host, live stack, no GPU needed) Negative-path sanity check: temporarily add a 5th bucket via `docker compose exec -T minio mc mb --ignore-existing local/phase0-extra` (or run `minio-init` against a MinIO with a stray extra bucket), re-run the script, expect `DoD-0-4  FAIL`; then remove the extra bucket (`docker compose exec -T minio mc rb local/phase0-extra`) and confirm it returns to `PASS`.
 
       ↳ **Both left unticked and unrun** — they need a live stack, which is blocked by the two
-      deps-stage defects (`apps/api/Dockerfile`, `infra/ffmpeg/Dockerfile:69-71`). Substituted with a
+      deps-stage defects (`apps/api/Dockerfile:7-10`, `infra/ffmpeg/Dockerfile:69-72`,
+      `infra/ffmpeg/cpu-fallback.Dockerfile:20-23`). Substituted with a
       stub `docker` answering `compose run --rm -T minio-init` in `minio-init.sh`'s real output shape
       (`buckets ready:` then `[ts] 0B <name>/`), labelled as a substitute. A3 r2 ran **nine** bucket
       scenarios through the whole script that way, asserting the invocation fired each time.
@@ -1175,7 +1177,7 @@ Not requested and not blocking — recorded as the honest answer to what a dedup
 > `docker compose run --rm -T api`, which this block itself calls load-bearing: port 9000 is never
 > published to the host, so only a container on the compose network can reach MinIO, and `run --rm`
 > (not `exec`) is what satisfies AC10's temporary-container clause. `api`'s image cannot be built — see
-> the two deps-stage defects recorded under Task 4's Steps. Substituting a different image would deviate
+> the three deps-stage defects recorded under Task 4's Steps. Substituting a different image would deviate
 > from approved text, so nothing was run. **AC10 therefore reaches handover NOT VERIFIED.** Unblocked by
 > the same `/dev-plan` task that owns `apps/api/Dockerfile`; this one needs only the `api` half.
 
@@ -1499,7 +1501,7 @@ annotate. **Resume-state anchors are intact and were verified byte-identical:** 
 - [x] Assemble the `## KB feedback` PR section with D1, D2, OPEN(BA)-1 through OPEN(BA)-5 (all bullets above, verbatim) and the AC22 env-var-count discrepancy note. Separately, assemble the `## Findings` PR section with Task 1's npm→pnpm substitution note, Task 1's narrowed-lint-rule list, and Task 9's one-line `no-console` exception. Do not drop any of them silently, and do not merge the two sections into one — this is a DoD requirement per the design, `docs/conventions/ts.md:67-69`, and the context cache's own instruction.
 - [x] Final check: every `- [ ]` box across Tasks 1–18 in this plan is either ticked with real command output recorded, or — for Task 10 only, if dispatched NOT TRIGGERED — replaced with the single `Not triggered — no change:` line. A plan with unticked, unexplained boxes is not ready for `dev-handover`.
 
-Review: ⏸ **not yet reviewed — A3 pending.** Implemented as a no-file-change closing task; 6 of 14
+Review: ✅ r3 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 3 rounds. Rounds 1 and 2 each returned a BLOCKER on the PR material, **both caused by the orchestrator committing a fix while the review was still running** — `cace352` landed 114 seconds after round 1's report was written and `d053851` three minutes after round 2's, so each review was correct when written and stale when read. No commit was made during round 3. Round 3 re-ran every gate at current HEAD and reproduced the report's figures byte-for-byte, confirmed the AC tally's substance unchanged (**verified-on-a-running-stack: none**, AC14 still in the not-verified column, nothing promoted), and verified all seven round-2 fixes landed. It also **re-measured the one finding where a fixer had overridden two prior judgements** — standing up its own disposable stack rather than trusting anyone — and confirmed `docker compose logs` prefixes `<service>-<index>` (`api-1  | `), so the ledger was right and both round 2 and the orchestrator were wrong to guess otherwise. Its one standing SUGGESTED was a defect in **this** file, not the report: six stale “two deps-stage defects” phrases and a stale `69-71` range, now corrected to three with the third path named and the `deps`-stage terminology fixed. Implemented as a no-file-change closing task; 6 of 14 steps ran, 8 unrun and annotated. Implemented as a no-file-change closing task; 6 of 14
 steps ran, 8 left unrun and annotated above. **The AC tally this task produced is the honest state of
 the branch and must not be softened in the PR: verified-on-a-running-stack = 0.** Verified statically:
 `cmd.test`, `cmd.lint` (exit 0, confirmed directly), AC24, AC6's build-time half, OPEN(BA)-3,
@@ -1549,7 +1551,7 @@ item (T14, the anonymous-GET-403 probe); T13 is a distinct check (`mc anonymous 
 verifies it and no artefact admits the gap. **This is the gap that survives a plan whose every box is
 ticked.** Needs a `/dev-plan` decision: author coverage, or record it as an accepted deferral.
 
-### The deps-stage defect is in **THREE** Dockerfiles, not two — correcting every prior record
+### The manifest-copy defect is in **THREE** Dockerfiles, not two — correcting every prior record
 
 Every earlier review, the ledger, `task-18-report.md` and the orchestrator's own summaries said two.
 Measured at HEAD: `apps/api/Dockerfile:7-10`, `infra/ffmpeg/Dockerfile:69-72` **and
@@ -1589,6 +1591,62 @@ rule Task 1 rests on cannot have been tailored to suit it.
 Commit `722fc81` added both with no AC, no owning task and no recorded reason. `.github/` being ignored
 **permanently blocks committing CI workflows**, which is a live constraint on this repo rather than a
 cosmetic one. Needs a Dev decision.
+
+### B2 — BLOCKER, found by A4 round 2: **AC23 is still unreachable on the CPU path.** OPEN, routed to `/dev-plan`
+
+B1's fix (`d053851`) repaired the CPU transcoder's missing `redis-cli`, but it is **necessary and not
+sufficient**. `infra/compose/docker-compose.cpu.yml:10-13` tries to drop the GPU requirement with
+`deploy.resources.reservations.devices: []` — and **Compose appends to that key rather than replacing
+it**, so an empty list is a silent no-op. Measured on this host: the merged CPU config's `transcoder`
+reservation is **byte-identical to the GPU one**, `[{"capabilities":["gpu","video"],"driver":"nvidia","count":1}]`.
+A4 reproduced the consequence with a throwaway service carrying that exact block:
+`could not select device driver "nvidia" with capabilities: [[gpu video]]` — the container is created,
+then fails to **start**. So on a GPU-less host `make up-cpu` (`Makefile:15-16`) cannot bring `transcoder`
+up at all, DoD-0-1 fails, and **AC23's "exit 0 with exactly one WAIVED item" is unreachable** — for a
+second and larger reason than B1.
+
+**Verified fix, one token:** `devices: !reset []` yields `reservations: {}` in the merged config,
+confirmed on this host (compose v5.5.1).
+
+**Not fixed here, deliberately.** `infra/compose/docker-compose.cpu.yml` is **untouched by this branch**
+(`git log 007108e..HEAD` on it is empty; its only commit predates the merge-base) and is on **no task's
+Files list** — the same class as the three manifest-copy Dockerfiles, which were routed to `/dev-plan`
+rather than fixed. Treated consistently. **AC23 is not implementable as the repo stands**, which is the
+case this phase sends back rather than papering over.
+
+**Three claims in the record are wrong and are corrected here rather than left to ship:**
+
+1. `docs/impl/M-platform-operations-US1-design.md:633` — "AC4's and AC8's facts are no longer meaningful
+   (**no GPU reservation**, no NVENC encoders to list)". **False** for the merged CPU config, which still
+   carries the nvidia reservation. The design is an approved artefact, so the contradiction is recorded
+   here rather than edited into it.
+2. **`d053851`'s own commit body** — "the merged CPU and GPU configs are unchanged apart from that",
+   offered as evidence the CPU transcoder can now turn healthy. True but misleading: the configs being
+   identical on this key **is** the defect. The orchestrator wrote that without tracing the merge
+   semantics.
+3. **`README.md:68-71`** — pre-existing text ("No NVIDIA GPU on this machine (a Mac, or CI):
+   `make up-cpu`") sends readers down a path that cannot start. Pre-existing, not added by Task 17, so it
+   travels with this same defect rather than being patched separately.
+
+### AC26's `infra/compose/` clause has three contradictory readings across artefacts — SUGGESTED, Dev to pick one
+
+- Plan `:311` — the clause "already **holds trivially** as literally worded — there is nothing at root
+  for the `infra/compose/` copies to duplicate".
+- Design `:71` — "Root already has exactly one `docker-compose.yml` and **no duplicates** under
+  `infra/compose/`".
+- Design `:471` — "T34 checks `ls infra/compose/` for zero files, **which FAILs** against the repo as D1
+  leaves it"; design `:629` — "`infra/compose/` holds exactly the 2 override files D1 already accounts
+  for, **not zero**".
+
+A PR reader gets no single answer on whether AC26's second clause passes, and OPEN(BA)-1 asks the BA to
+amend a clause one artefact says already passes.
+
+### Terminology correction for whoever writes the `/dev-plan` task
+
+Only `apps/api/Dockerfile` has a stage literally named `deps` (`FROM base AS deps`).
+`infra/ffmpeg/Dockerfile` has `ffmpeg-builder` plus an unnamed final stage, and
+`cpu-fallback.Dockerfile` has a single unnamed stage — so grepping `AS deps` finds only one of the three.
+The defect is in the **manifest-copy block** feeding `pnpm install` in each.
 
 ### What A4 confirmed clean
 
