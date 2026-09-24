@@ -50,6 +50,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # `video` in NVIDIA_DRIVER_CAPABILITIES is mandatory. Without it nvidia-smi
 # still works but NVENC is invisible — a notoriously hard failure to diagnose.
 
+# redis-tools is here only for redis-cli, which docker-compose.yml's transcoder
+# healthcheck runs to prove the queue dependency (AC14 Q2) — nothing else uses it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libx264-163 libx265-199 libass9 libfdk-aac2 ca-certificates curl gnupg redis-tools \
  && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \

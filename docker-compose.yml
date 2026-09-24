@@ -54,6 +54,10 @@ services:
     ports: ["127.0.0.1:3000:3000"]
     depends_on:
       api: { condition: service_healthy }
+    # redirect:'manual' is load-bearing: it stops at the first response instead of
+    # following / onward. A followed chain can reach /browse (when a session cookie
+    # exists), which SSRs an unhandled NotImplementedException and would pin web
+    # unhealthy; cookie-less it lands on /login instead. Don't rely on which.
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/', {redirect:'manual'}).then(r=>process.exit(r.status<400?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
