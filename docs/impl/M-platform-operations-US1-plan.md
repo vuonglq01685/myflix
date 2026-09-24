@@ -728,13 +728,61 @@ make `--fresh` fail unconditionally.
 - Produces for later tasks: the `subcheck`/`item_done` helper functions and the `item_result`/`item_detail` pattern, consumed by Tasks 13, 14, 15 (each adds `subcheck` calls under this same scaffold) and Task 14's `TRANSCODE_ENCODER`-based `WAIVED` gate reused for DoD-0-2 specifically (Task 14 handles DoD-0-3's separate libx264 preset swap, not this `WAIVED` gate).
 
 **Steps**
-- [ ] (Host, no Docker needed) Failing test: run `bash scripts/verify-phase0.sh 2>/dev/null | grep -cE '^DoD-0-[1-5]  (PASS|FAIL|WAIVED)$'` against a stack that is NOT fully up (e.g. before `docker compose up`, so every check fails fast). Expect: `0` today — the script prints per-sub-check `PASS`/`FAIL` lines (` PASS  ...` / ` FAIL  ...` with a leading 2-space indent, not `DoD-0-N  VERDICT`), not the target 5-line item format.
-- [ ] Replace the `check()` helper with the `subcheck`/`item_done` pair above; rewrite each of the 5 `DoD-0-N` sections to use them, preserving every existing underlying command (only renaming `check` calls to `subcheck`).
-- [ ] Add the `TRANSCODE_ENCODER`-driven `WAIVED` gate to the DoD-0-2 section as shown.
-- [ ] Re-run Step 1's grep against the same not-fully-up stack. Expect: `5` (each item now reports exactly one FAIL line, still non-zero exit).
-- [ ] (Host, no Docker needed) `bash -n scripts/verify-phase0.sh`. Expect: exits 0.
+- [x] (Host, no Docker needed) Failing test: run `bash scripts/verify-phase0.sh 2>/dev/null | grep -cE '^DoD-0-[1-5]  (PASS|FAIL|WAIVED)$'` against a stack that is NOT fully up (e.g. before `docker compose up`, so every check fails fast). Expect: `0` today — the script prints per-sub-check `PASS`/`FAIL` lines (` PASS  ...` / ` FAIL  ...` with a leading 2-space indent, not `DoD-0-N  VERDICT`), not the target 5-line item format.
+- [x] Replace the `check()` helper with the `subcheck`/`item_done` pair above; rewrite each of the 5 `DoD-0-N` sections to use them, preserving every existing underlying command (only renaming `check` calls to `subcheck`).
+- [x] Add the `TRANSCODE_ENCODER`-driven `WAIVED` gate to the DoD-0-2 section as shown.
+- [x] Re-run Step 1's grep against the same not-fully-up stack. Expect: `5` (each item now reports exactly one FAIL line, still non-zero exit).
+- [x] (Host, no Docker needed) `bash -n scripts/verify-phase0.sh`. Expect: exits 0.
 - [ ] (GPU host) `bash scripts/verify-phase0.sh` against a live, fully-healthy stack. Expect: exactly 5 lines matching `^DoD-0-[1-5]  PASS$`, plus the `passed N, failed N` tail with `failed 0`.
 - [ ] (Host, live stack via CPU-fallback compose, no GPU — only if Task 10 was triggered; see the redis-tools precondition in Interfaces above, otherwise `transcoder` never turns healthy and `up -d --wait` times out) With the stack up via `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml up -d --wait --wait-timeout 180`: `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh` (exported on the invoking shell — see Interfaces; `.env` alone does not reach this script) — expect `DoD-0-2  WAIVED` and the script still exits 0 provided every other item is `PASS`.
+
+      ↳ **Both left unticked and unrun.** No GPU, no live stack, and the live path is blocked by
+      **two** pre-existing deps-stage gaps that no task in this plan owns (`apps/api/Dockerfile` and
+      `infra/ffmpeg/Dockerfile:69-72`, both omitting `packages/storage/package.json`). The second step
+      is **additionally** gated on Task 10, whose TRIGGERED / NOT TRIGGERED value is a Project Owner
+      decision that has not been supplied — so its governing input does not exist yet, independent of
+      the stack. Substituted with a host-only stub check, labelled as a substitute: A3 confirmed the
+      `WAIVED` gate **skips the work** rather than only changing the printing (**0**
+      `ffmpeg -hide_banner -encoders` invocations under `TRANSCODE_ENCODER=libx264` vs 3 ungated), that
+      `passed 4, failed 0` exits **0**, and that a waive neither inflates `$pass` nor masks a real
+      failure (WAIVED + one genuine FAIL → `passed 3, failed 1`, exit 1).
+
+
+Review: ✅ r2 — A3 clean (spec compliance PASS + code quality PASS), independent reviewer, 2 rounds,
+no BLOCKER in either. Commits `a19a397` (the task) + `a8d789f` (round-1 fix). Round 1 executed the
+committed revision under stubbed `docker`/`curl` across **12 scenarios** and confirmed the helper body
+and `WAIVED` gate are character-for-character the prescribed code, with every underlying command
+byte-identical to `f9cdbe3` apart from the `check` → `subcheck` rename. **All three
+orchestrator-authorised additions landed and were verified against behaviour, not just read** — in
+particular the corrected `:4-5` comment was checked by making DoD-0-1 fail and observing all five items
+still run, with exit decided once at the tail by `[ "$fail" -eq 0 ]`.
+
+  ↳ **Round 1's SUGGESTED-1 — RESOLVED by `a8d789f`, and the case it closed was destructive.** The
+  authorised argv guard had validated only `$1`, so extra arguments were still silently ignored. Round 2
+  measured the real consequence at the pre-fix revision: `verify-phase0.sh --fresh --no-teardown` exited
+  **0** having **executed `docker compose down -v`** — volumes destroyed while the flag was silently
+  swallowed. At `a8d789f` the same invocation exits **2** with **zero** docker calls. `bash -x` confirms
+  no path sets `FRESH=1` and then falls through to a run it should have rejected, and `grep -n '\$?'`
+  finds nothing reading `$?`, so the guards' `&&`-chain statuses cannot leak downstream.
+
+  ↳ **Round 1's NOTE-5 is FACTUALLY WRONG — do not carry it to Tasks 14-15.** It claimed that if a
+  later task added `set -e`, the `&&`-chain guard would exit on every no-flag run. It would not: bash
+  exempts a failing command that is part of an `&&` list and is not the command following the final
+  `&&`. Measured on the real file with `set -euo pipefail` substituted: no-arg run → **exit 0, all five
+  items printed**; with `--fresh` → exit 0, five items. Minimal repro:
+  `bash -c 'set -e; [ 1 = 2 ] && VAR=1; echo reached'` prints `reached`, rc 0. **All three `&&`-chain
+  lines are `set -e`-safe as written** — acting on NOTE-5 would have appended `|| true` to three
+  correct lines for no reason.
+
+  ↳ **Carried to the PR, not to a fix round:** `task-12-report.md`'s authorised-additions section and
+  inlined diff are **stale** against `a8d789f` (they document only the `$1` half), and `/dev-handover`
+  assembles the PR from these artefacts, so a pointer to `a8d789f` has been appended to the report to
+  stop the PR under-describing the change. **NITS** — the two guards' messages are inconsistent: the
+  value guard prints no usage hint, the arity guard does not name the offending argument, and a single
+  empty-string argument yields a bare `unknown argument: ` with nothing after the colon; printing the
+  usage line from both paths would fix it if anyone touches those lines. **NOTE** — the new usage string
+  is now the only place in the repo where `--fresh` self-documents, which partly mitigates (but does not
+  close) the carried "`--fresh` has no discoverable entrypoint" finding still owed to Task 17.
 
 ## Task 13 — `scripts/verify-phase0.sh`: DoD-0-1 exactness — 7 healthy + `minio-init` state and exit code (AC1, AC2, AC16 verification)
 
