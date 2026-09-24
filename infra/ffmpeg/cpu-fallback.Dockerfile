@@ -20,11 +20,13 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/db/package.json     ./packages/db/
+COPY packages/storage/package.json ./packages/storage/
 COPY apps/transcoder/package.json ./apps/transcoder/
 RUN pnpm install --frozen-lockfile=false
 COPY . .
 RUN pnpm --filter @myflix/db generate \
  && pnpm --filter @myflix/shared build \
+ && pnpm --filter @myflix/storage build \
  && pnpm --filter @myflix/db build \
  && pnpm --filter @myflix/transcoder build
 

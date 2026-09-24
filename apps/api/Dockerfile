@@ -7,6 +7,7 @@ FROM base AS deps
 COPY pnpm-workspace.yaml package.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/db/package.json     ./packages/db/
+COPY packages/storage/package.json ./packages/storage/
 COPY apps/api/package.json        ./apps/api/
 RUN pnpm install --frozen-lockfile=false
 
@@ -14,6 +15,7 @@ FROM deps AS build
 COPY . .
 RUN pnpm --filter @myflix/db generate \
  && pnpm --filter @myflix/shared build \
+ && pnpm --filter @myflix/storage build \
  && pnpm --filter @myflix/db build \
  && pnpm --filter @myflix/api build
 
