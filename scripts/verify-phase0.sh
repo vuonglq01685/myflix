@@ -53,7 +53,7 @@ subcheck "minio-init exited(0)" bash -c '
   [ "$state" = "exited" ] && [ "$code" = "0" ]
 '
 subcheck "7 services healthy" bash -c '
-  n=$(docker compose ps --format "{{.Service}} {{.Health}}" | awk '$2=="healthy"{print $1}' | sort -u | wc -l)
+  n=$(docker compose ps --format "{{.Service}} {{.Health}}" | grep " healthy$" | sort -u | wc -l | tr -d " ")
   echo "healthy: $n/7"
   [ "$n" -eq 7 ]
 '
