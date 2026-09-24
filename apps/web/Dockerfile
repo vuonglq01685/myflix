@@ -17,4 +17,7 @@ RUN pnpm --filter @myflix/shared build \
 FROM build AS runtime
 ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["pnpm", "--filter", "@myflix/web", "exec", "next", "start", "--port", "3000"]
+# apps/web/scripts/start.js runs the traced standalone server.js directly
+# instead of through the `next start` CLI, and wraps its non-JSON startup
+# banner as JSON -- see that file for why (AC18).
+CMD ["node", "apps/web/scripts/start.js"]
