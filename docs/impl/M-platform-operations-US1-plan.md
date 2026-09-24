@@ -2306,15 +2306,17 @@ Decisions:
 
 **Steps**
 
-- [ ] Red (twice): `docker compose down -v --remove-orphans; docker compose up -d --build --wait --wait-timeout 180; echo "exit=$?"`. Expect `exit=1` and
+- [x] Red (twice): `docker compose down -v --remove-orphans; docker compose up -d --build --wait --wait-timeout 180; echo "exit=$?"`. Expect `exit=1` and
       `minio-init exited (0)` on both runs. Paste the real output.
-- [ ] Make the `depends_on` change exactly as in Interfaces. `docker compose config` (with the CPU `COMPOSE_FILE`), and again with only
+- [x] Make the `depends_on` change exactly as in Interfaces. `docker compose config` (with the CPU `COMPOSE_FILE`), and again with only
       `-f docker-compose.yml`, both show `api.depends_on.minio-init.condition: service_completed_successfully`.
-- [ ] Green (twice): the same command as Red. Expect `exit=0` on both runs, and `docker compose ps` showing 7 services healthy with `minio-init` at `Exited (0)`.
-- [ ] `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh --fresh; echo "exit=$?"`. Expect DoD-0-1 PASS, DoD-0-2 WAIVED, DoD-0-3/4/5 PASS,
+- [x] Green (twice): the same command as Red. Expect `exit=0` on both runs, and `docker compose ps` showing 7 services healthy with `minio-init` at `Exited (0)`.
+- [x] `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh --fresh; echo "exit=$?"`. Expect DoD-0-1 PASS, DoD-0-2 WAIVED, DoD-0-3/4/5 PASS,
       `passed 4, failed 0`, `exit=0`.
-- [ ] Add the README sentence. `npx prettier --check README.md docker-compose.yml` exits 0.
-- [ ] `pnpm -r test` and `npx eslint . && npx prettier --check .` both exit 0. Tear down with `docker compose down -v --remove-orphans` for project `t29` only.
+- [x] Add the README sentence. `npx prettier --check README.md docker-compose.yml` exits 0.
+- [x] `pnpm -r test` and `npx eslint . && npx prettier --check .` both exit 0. Tear down with `docker compose down -v --remove-orphans` for project `t29` only.
+
+Review: ✅ r1 — A3 clean (spec compliance PASS + code quality PASS), independent opus reviewer. Commit `6324f09` (2 lines). The reviewer confirmed red at `6d6954a` in project `a3t29`: `up --wait` exited 1 after 45 s with `minio-init exited (0)`. Green at HEAD: 2/2 runs exited 0 (~30 s, 7 healthy), and a re-`up` without `down` and `up --wait api` alone also exit 0. `verify-phase0.sh --fresh` gives `passed 4, failed 0`, exit 0. The GPU-only config carries the same dependency. There is no cycle: `api` is the only dependent, `minio-init` is idempotent, and DoD-0-4's `run --rm minio-init` is unaffected. NOTEs for PR `## Findings`: the AC27 script-edit half was vacuous for this change and the re-run half was met. The commit body's root-cause sentence is imprecise. The actual cause: `up --wait` treats an exited one-shot as a failure unless a dependent declares `service_completed_successfully`.
 
 ## Task 31 — AC18: 100% of `api` and `web` log lines are JSON (A4 r3 S-R3-3; AC18)
 
