@@ -70,10 +70,18 @@ fi
 item_done "DoD-0-2"
 
 echo "DoD-0-3  encode a 30s clip with h264_nvenc"
-subcheck "nvenc smoke encode" docker compose exec -T transcoder sh -c \
-  "ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=30 -t 30 \
-     -c:v h264_nvenc -preset p5 -b:v 3000k -f mp4 /scratch/phase0.mp4 && \
-   ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /scratch/phase0.mp4 | grep -q h264"
+if [ "${TRANSCODE_ENCODER:-h264_nvenc}" = "h264_nvenc" ]; then
+  ENC="h264_nvenc"; PRESET="p5"
+else
+  ENC="libx264"; PRESET="veryfast"
+fi
+subcheck "smoke encode + duration bound" docker compose exec -T transcoder sh -c "
+  ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=30 -t 30 \
+     -c:v $ENC -preset $PRESET -b:v 3000k -f mp4 /scratch/phase0.mp4 && \
+   ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /scratch/phase0.mp4 | grep -q h264 && \
+   dur=\$(ffprobe -v error -show_entries format=duration -of csv=p=0 /scratch/phase0.mp4) && \
+   awk -v d=\"\$dur\" 'BEGIN{exit !(d>=29.5 && d<=30.5)}'
+"
 item_done "DoD-0-3"
 
 echo "DoD-0-4  four MinIO buckets exist"
