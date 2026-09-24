@@ -13,13 +13,13 @@ Read this file first, then the pack. Each language file extends its
 `common/` counterpart; where the two disagree, the language file wins, and
 `docs/conventions/ts.local.md` wins over both.
 
-| Topic        | TypeScript / JavaScript                  | Shared                                           |
-| ------------ | ---------------------------------------- | ------------------------------------------------ |
+| Topic | TypeScript / JavaScript | Shared |
+|---|---|---|
 | Coding style | [ts/coding-style.md](ts/coding-style.md) | [common/coding-style.md](common/coding-style.md) |
-| Patterns     | [ts/patterns.md](ts/patterns.md)         | [common/patterns.md](common/patterns.md)         |
-| Security     | [ts/security.md](ts/security.md)         | [common/security.md](common/security.md)         |
-| Testing      | [ts/testing.md](ts/testing.md)           | [common/testing.md](common/testing.md)           |
-| Hooks        | [ts/hooks.md](ts/hooks.md)               | [common/hooks.md](common/hooks.md)               |
+| Patterns | [ts/patterns.md](ts/patterns.md) | [common/patterns.md](common/patterns.md) |
+| Security | [ts/security.md](ts/security.md) | [common/security.md](common/security.md) |
+| Testing | [ts/testing.md](ts/testing.md) | [common/testing.md](common/testing.md) |
+| Hooks | [ts/hooks.md](ts/hooks.md) | [common/hooks.md](common/hooks.md) |
 
 ## Citation comments
 

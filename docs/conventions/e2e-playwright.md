@@ -17,13 +17,13 @@ Read this file first, then the pack. Each language file extends its
 `common/` counterpart; where the two disagree, the language file wins, and
 `docs/conventions/e2e-playwright.local.md` wins over both.
 
-| Topic        | Playwright e2e                                                   | Shared                                           |
-| ------------ | ---------------------------------------------------------------- | ------------------------------------------------ |
+| Topic | Playwright e2e | Shared |
+|---|---|---|
 | Coding style | [e2e-playwright/coding-style.md](e2e-playwright/coding-style.md) | [common/coding-style.md](common/coding-style.md) |
-| Patterns     | [e2e-playwright/patterns.md](e2e-playwright/patterns.md)         | [common/patterns.md](common/patterns.md)         |
-| Security     | [e2e-playwright/security.md](e2e-playwright/security.md)         | [common/security.md](common/security.md)         |
-| Testing      | [e2e-playwright/testing.md](e2e-playwright/testing.md)           | [common/testing.md](common/testing.md)           |
-| Hooks        | [e2e-playwright/hooks.md](e2e-playwright/hooks.md)               | [common/hooks.md](common/hooks.md)               |
+| Patterns | [e2e-playwright/patterns.md](e2e-playwright/patterns.md) | [common/patterns.md](common/patterns.md) |
+| Security | [e2e-playwright/security.md](e2e-playwright/security.md) | [common/security.md](common/security.md) |
+| Testing | [e2e-playwright/testing.md](e2e-playwright/testing.md) | [common/testing.md](common/testing.md) |
+| Hooks | [e2e-playwright/hooks.md](e2e-playwright/hooks.md) | [common/hooks.md](common/hooks.md) |
 
 ## Citation comments
 

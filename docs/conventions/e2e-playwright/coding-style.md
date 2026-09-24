@@ -12,7 +12,7 @@ package updates, so do not hand-edit. Record repo-specific deviations in
   next to the feature they cover — follow the repo's existing layout.
 - `test.describe("<feature>")` groups by feature/page, not by test type.
 - Test names describe user-visible behaviour: `test("rejects expired
-session and redirects to login")`, not `test("case 2")`.
+  session and redirects to login")`, not `test("case 2")`.
 
 ## Diagnostics
 

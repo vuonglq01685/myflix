@@ -17,7 +17,6 @@ code. Nothing here refers to a user-level configuration.
 ## Auto-accept permissions
 
 Use with caution:
-
 - Enable for trusted, well-defined plans
 - Disable for exploratory work
 - Never use dangerously-skip-permissions flag

@@ -8,7 +8,6 @@ relevant `docs/conventions/<lang>.local.md`.
 ## Mandatory security checks
 
 Before any commit — this is the A5 merge-risk checklist in `/dev-handover`:
-
 - [ ] No hardcoded secrets (API keys, passwords, tokens)
 - [ ] All user inputs validated
 - [ ] SQL injection prevention (parameterized queries)
@@ -28,7 +27,6 @@ Before any commit — this is the A5 merge-risk checklist in `/dev-handover`:
 ## Security response protocol
 
 If security issue found:
-
 1. STOP immediately
 2. Raise it as a BLOCKER in the task review (A3, `/dev-execute`) or the merge-risk review (A5, `/dev-handover`)
 3. Fix CRITICAL issues before continuing
