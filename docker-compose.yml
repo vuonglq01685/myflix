@@ -59,7 +59,13 @@ services:
     # followed chain reaches /browse, which SSRs a catalog fetch that throws with no
     # error.tsx to catch it, 500s, and would pin web unhealthy. Don't rely on which.
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/', {redirect:'manual'}).then(r=>process.exit(r.status<400?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/', {redirect:'manual'}).then(r=>process.exit(r.status<400?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -85,10 +91,16 @@ services:
     ports: ["127.0.0.1:4000:4000"]
     depends_on:
       postgres: { condition: service_healthy }
-      redis:    { condition: service_healthy }
-      minio:    { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -114,8 +126,8 @@ services:
       - transcode-scratch:/scratch
     depends_on:
       postgres: { condition: service_healthy }
-      redis:    { condition: service_healthy }
-      minio:    { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "redis-cli", "-h", "redis", "ping"]
       interval: 10s
@@ -149,7 +161,8 @@ services:
   redis:
     image: redis:7-alpine
     # AOF on: BullMQ jobs and buffered watch progress must survive a restart.
-    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    command:
+      ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
       - myflix-redis-data:/data
     expose: ["6379"]
@@ -167,7 +180,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "127.0.0.1:9001:9001"   # console only; the S3 API stays behind nginx
+      - "127.0.0.1:9001:9001" # console only; the S3 API stays behind nginx
     expose: ["9000"]
     volumes:
       - myflix-minio-data:/data

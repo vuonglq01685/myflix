@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from "node:crypto";
 
 /**
  * Playback URL signing (ADR-006), byte-compatible with nginx's
@@ -23,11 +23,21 @@ export interface SignedMediaUrl {
 }
 
 function base64url(buf: Buffer): string {
-  return buf.toString('base64').replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+  return buf
+    .toString("base64")
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
 }
 
-export function mediaSignature(secret: string, assetId: string, expires: number): string {
-  return base64url(createHash('md5').update(`${secret}${assetId}${expires}`).digest());
+export function mediaSignature(
+  secret: string,
+  assetId: string,
+  expires: number,
+): string {
+  return base64url(
+    createHash("md5").update(`${secret}${assetId}${expires}`).digest(),
+  );
 }
 
 export function signMediaPath(params: {
@@ -43,14 +53,14 @@ export function signMediaPath(params: {
   const ttl = params.ttlSec ?? DEFAULT_MEDIA_TTL_SEC;
   const expires = Math.floor(now.getTime() / 1000) + ttl;
   const md5 = mediaSignature(secret, assetId, expires);
-  const clean = path.replace(/^\/+/, '');
+  const clean = path.replace(/^\/+/, "");
   return {
     url: `/media/${assetId}/${clean}?md5=${md5}&expires=${expires}`,
     expiresAt: new Date(expires * 1000),
   };
 }
 
-export type SignatureCheck = 'ok' | 'expired' | 'invalid';
+export type SignatureCheck = "ok" | "expired" | "invalid";
 
 /** Mirrors nginx's own verdicts so tests can assert 403 vs 410 behaviour. */
 export function verifyMediaSignature(params: {
@@ -61,19 +71,19 @@ export function verifyMediaSignature(params: {
   now?: Date;
 }): SignatureCheck {
   const { secret, assetId, md5 } = params;
-  if (!md5 || params.expires === undefined) return 'invalid';
+  if (!md5 || params.expires === undefined) return "invalid";
 
   const expires = Number(params.expires);
-  if (!Number.isInteger(expires)) return 'invalid';
+  if (!Number.isInteger(expires)) return "invalid";
 
   const expected = Buffer.from(mediaSignature(secret, assetId, expires));
   const actual = Buffer.from(md5);
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-    return 'invalid';
+    return "invalid";
   }
 
   const nowSec = Math.floor((params.now ?? new Date()).getTime() / 1000);
-  return expires > nowSec ? 'ok' : 'expired';
+  return expires > nowSec ? "ok" : "expired";
 }
 
 /** Client renews once the remaining lifetime drops below this (HLD §3.2). */

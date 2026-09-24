@@ -1,4 +1,4 @@
-import { hash, verify, Algorithm } from '@node-rs/argon2';
+import { hash, verify, Algorithm } from "@node-rs/argon2";
 
 /** Argon2id parameters fixed by doc 04 §3.1. */
 export const ARGON2_OPTIONS = {

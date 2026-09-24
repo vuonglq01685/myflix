@@ -28,9 +28,9 @@ outside itself — that happens in `child` repos, reviewed on the `hub`.
    very same `kb ci-publish` step republishes it too: it diffs the whole
    `.kb/` tree, not `-code` alone, so a merged `-svc` amend rides the
    next push out to the hub with no separate command. What CI never
-   does is *create* `-svc` content — `--scaffold-svc` is never passed
+   does is _create_ `-svc` content — `--scaffold-svc` is never passed
    there. The one-time seed below still runs `kb publish --pr` by hand
-   for its first-ever publish, simply because that happens *before*
+   for its first-ever publish, simply because that happens _before_
    anything has merged to the default branch yet, so there is no push
    for `kb-code.yml` to react to.
    Whether the hub PR `kb ci-publish` opens for `<repo_id>-code` then
@@ -65,8 +65,9 @@ outside itself — that happens in `child` repos, reviewed on the `hub`.
    (`set -a; source .env; set +a`, or use direnv) and restart your assistant —
    MCP reads the environment only at startup.
 
-   This is a *different* value from `hub:` in `.kb/config.yaml`, which is the
+   This is a _different_ value from `hub:` in `.kb/config.yaml`, which is the
    git/path federation hub used by `kb query` and the lint gates.
+
 5. **Open this repo** in Claude Code, GitHub Copilot Chat, or Cursor — the
    `dev-implement-ticket`, `dev-design`, `dev-plan`, `dev-execute`, and
    `dev-handover` skills/commands/prompts are scaffolded for all three.
@@ -128,15 +129,15 @@ Pick the entry point that matches where the work already stands — every
 phase is resumable, because state lives in `docs/impl/`, the branch, and
 the PR, not in the assistant's memory:
 
-| Situation | Run |
-| --- | --- |
-| New ticket, nothing started | `/dev-implement-ticket <ticket>` |
-| Small ticket, the whole change is obvious | `/dev-implement-ticket <ticket>` — the flow collapses itself; the design is still written to `docs/impl/<ticket-id>-design.md`, just a bounded one (a paragraph, `path: bounded`) instead of the full template |
-| Design approved, no plan yet | `/dev-plan <id>` |
-| Plan approved, or execution already in progress | `/dev-execute <id>` |
-| Code hand-implemented, needs a PR write-up | `/dev-handover <id>` |
-| Lost track of where a ticket stands | `/dev-implement-ticket <id>` |
-| Just want to check a citation, no implementation | `kb resolve <file>` |
+| Situation                                        | Run                                                                                                                                                                                                            |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New ticket, nothing started                      | `/dev-implement-ticket <ticket>`                                                                                                                                                                               |
+| Small ticket, the whole change is obvious        | `/dev-implement-ticket <ticket>` — the flow collapses itself; the design is still written to `docs/impl/<ticket-id>-design.md`, just a bounded one (a paragraph, `path: bounded`) instead of the full template |
+| Design approved, no plan yet                     | `/dev-plan <id>`                                                                                                                                                                                               |
+| Plan approved, or execution already in progress  | `/dev-execute <id>`                                                                                                                                                                                            |
+| Code hand-implemented, needs a PR write-up       | `/dev-handover <id>`                                                                                                                                                                                           |
+| Lost track of where a ticket stands              | `/dev-implement-ticket <id>`                                                                                                                                                                                   |
+| Just want to check a citation, no implementation | `kb resolve <file>`                                                                                                                                                                                            |
 
 `/dev-implement-ticket` is also the orchestrator: given a ticket fresh, it
 runs Intake → Resolve → Ground → Placeholders, then invokes `dev-design`,
@@ -175,13 +176,13 @@ Before each of the first three gates, a different agent has already read
 the work back in a context of its own — never the same agent that
 produced it:
 
-| | Where | What it looks at |
-|---|---|---|
-| A1 | `dev-design`, before GATE 1 | whether the design matches the ticket |
-| A2 | `dev-plan`, before GATE 2 | whether the plan is test-first and runnable |
-| A3 | `dev-execute`, per task | whether this task's diff meets its spec, and whether the code is good |
-| A4 | `dev-execute`, after the last task | whether the finished branch rounds out the ticket |
-| A5 | `dev-handover`, before GATE 3 | whether merging into the default branch is safe |
+|     | Where                              | What it looks at                                                      |
+| --- | ---------------------------------- | --------------------------------------------------------------------- |
+| A1  | `dev-design`, before GATE 1        | whether the design matches the ticket                                 |
+| A2  | `dev-plan`, before GATE 2          | whether the plan is test-first and runnable                           |
+| A3  | `dev-execute`, per task            | whether this task's diff meets its spec, and whether the code is good |
+| A4  | `dev-execute`, after the last task | whether the finished branch rounds out the ticket                     |
+| A5  | `dev-handover`, before GATE 3      | whether merging into the default branch is safe                       |
 
 Criteria live in `docs/pr-review-rubric.md`, overridden by
 `docs/pr-review-rubric.local.md`. Each round allows at most 3 fix/review
@@ -238,7 +239,7 @@ measures compliance with it. The only check is the human at the gate.
 - **`OPEN(BA)`** — an ambiguous AC is escalated, never reinterpreted.
 - **A1–A4** — the four agent reviews before GATE 3 are prompt discipline;
   nothing in `kb` measures whether they ran. Only A5 has teeth: `kb pr
-  lint` reads the PR's `## Review` section. An agent that skips A1–A4 and
+lint` reads the PR's `## Review` section. An agent that skips A1–A4 and
   writes an honest `Blocking: No` still passes — the gate sits where the
   merge actually happens, not at every step before it.
 
@@ -252,7 +253,7 @@ neither needs new per-ticket discipline from you:
   default branch, so it always reflects the current commit's structure.
 - **`<repo_id>-svc`** accrues automatically at handover: `dev-handover`
   runs `kb svc note <service> --ticket <id> --title "<title>" --refs
-  "<refs>"` for every service a ticket touched, appending one row to
+"<refs>"` for every service a ticket touched, appending one row to
   that service's `hist.<service>` section. You never hand-edit `hist.*`
   — it is an append-only log written only by `kb svc note`.
 
@@ -264,7 +265,7 @@ whitespace-trimmed** string — not a semantic diff over specific fields.
 **Any** change other than to leading/trailing whitespace flags
 `stale-risk: svc.<name>` in the ingest report: a real change (a file
 or table added or removed) will trip it, but so will a change in
-nothing but *how* the evidence is rendered, with zero code changed
+nothing but _how_ the evidence is rendered, with zero code changed
 underneath (see the upgrade note just below for exactly that case).
 That is not an error and it never touches L2 — it is a flag that a
 human-reviewed sentence may no longer match the code, for a human to
@@ -396,14 +397,22 @@ If this repo already had a `.claude/settings.json`, `kb init` left it alone.
 Merge the hook in by hand:
 
 ```json
-{"hooks": {"Stop": [{"hooks": [
-  {
-    "type": "command",
-    "command": "kb usage ingest-transcript --hook-stdin",
-    "timeout": 30,
-    "statusMessage": "Recording token usage..."
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "kb usage ingest-transcript --hook-stdin",
+            "timeout": 30,
+            "statusMessage": "Recording token usage..."
+          }
+        ]
+      }
+    ]
   }
-]}]}}
+}
 ```
 
 `--force` does not merge this hook in for you: it replaces the whole file
@@ -425,10 +434,10 @@ A recommendation, not a rule — nothing in `kb` enforces or measures compliance
 with it. Some steps in this pipeline are judgment and some are mechanical;
 running both on the same model pays the judgment price for the mechanical half.
 
-| Tier | Steps |
-| --- | --- |
-| Strong | `dev-design`, `dev-plan`, the review subagents (A1–A5, including the `task-reviewer`), and assembling the PR body (it now carries A5's finding table) |
-| Cheap | the lint/format fix loop, re-running the suite until green, ticking plan checkboxes, the self-review checkpoint inside each `dev-execute` task (it never satisfies A3), `kb usage report --ticket <id> --md`, and the `kb svc note` calls at handover |
+| Tier   | Steps                                                                                                                                                                                                                                                 |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Strong | `dev-design`, `dev-plan`, the review subagents (A1–A5, including the `task-reviewer`), and assembling the PR body (it now carries A5's finding table)                                                                                                 |
+| Cheap  | the lint/format fix loop, re-running the suite until green, ticking plan checkboxes, the self-review checkpoint inside each `dev-execute` task (it never satisfies A3), `kb usage report --ticket <id> --md`, and the `kb svc note` calls at handover |
 
 Which model belongs to which tier follows the price table in force —
 `usage-prices.yaml` shipped with the package, overridable per model at

@@ -26,11 +26,11 @@ package updates, so do not hand-edit. Record repo-specific deviations in
 ## E2E shape
 
 ```ts
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test('landing hero loads', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+test("landing hero loads", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 ```
 

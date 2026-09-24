@@ -2,3 +2,5 @@
 .cursor/
 .gitnexus/
 pnpm-lock.yaml
+docs/impl/*-review/
+docs/impl/*-context.md

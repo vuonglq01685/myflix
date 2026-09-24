@@ -8,6 +8,7 @@ relevant `docs/conventions/<lang>.local.md`.
 ## Minimum test coverage: 80%
 
 Test Types (ALL required):
+
 1. **Unit tests** - Individual functions, utilities, components
 2. **Integration tests** - API endpoints, database operations
 3. **E2E tests** - Critical user flows (framework chosen per language)
@@ -15,6 +16,7 @@ Test Types (ALL required):
 ## Test-driven development
 
 MANDATORY workflow:
+
 1. Write test first (RED)
 2. Run test - it should FAIL
 3. Write minimal implementation (GREEN)

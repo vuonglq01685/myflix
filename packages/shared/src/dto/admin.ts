@@ -1,4 +1,4 @@
-import type { JobStatus, TitleStatus, TitleType } from '../enums';
+import type { JobStatus, TitleStatus, TitleType } from "../enums";
 
 export interface AdminStats {
   titles: { total: number; published: number; draft: number };
@@ -48,6 +48,6 @@ export interface JobListItem {
 export interface UploadSubtitleRequest {
   lang: string;
   label: string;
-  kind?: 'SUBTITLES' | 'CAPTIONS' | 'FORCED';
+  kind?: "SUBTITLES" | "CAPTIONS" | "FORCED";
   isDefault?: boolean;
 }

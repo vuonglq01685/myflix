@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import type { Billboard as BillboardData } from '@myflix/shared';
+import { useEffect, useRef, useState } from "react";
+import type { Billboard as BillboardData } from "@myflix/shared";
 
 const TRAILER_DELAY_MS = 2000;
 
@@ -17,7 +17,7 @@ export function Billboard({ billboard }: { billboard: BillboardData }) {
 
   useEffect(() => {
     if (!billboard.trailerPreviewUrl) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const timer = setTimeout(() => setShowTrailer(true), TRAILER_DELAY_MS);
     return () => clearTimeout(timer);
@@ -27,7 +27,10 @@ export function Billboard({ billboard }: { billboard: BillboardData }) {
     <section
       aria-labelledby="billboard-heading"
       className="relative w-full"
-      style={{ height: 'var(--size-billboard)', minHeight: 'var(--size-billboard-min)' }}
+      style={{
+        height: "var(--size-billboard)",
+        minHeight: "var(--size-billboard-min)",
+      }}
     >
       {/* Layer 1 — artwork, swapped for the muted trailer after 2s. */}
       <img
@@ -39,7 +42,7 @@ export function Billboard({ billboard }: { billboard: BillboardData }) {
         className="absolute inset-0 size-full object-cover"
         style={{
           opacity: showTrailer ? 0 : 1,
-          transition: 'opacity var(--duration-slow) var(--ease-standard)',
+          transition: "opacity var(--duration-slow) var(--ease-standard)",
         }}
       />
       {billboard.trailerPreviewUrl && showTrailer ? (
@@ -59,13 +62,15 @@ export function Billboard({ billboard }: { billboard: BillboardData }) {
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(to right, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.5) 35%, transparent 65%)',
+            "linear-gradient(to right, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.5) 35%, transparent 65%)",
         }}
       />
       {/* Layer 3 — vertical scrim blending into the rows below. */}
       <div
         className="absolute inset-0"
-        style={{ background: 'linear-gradient(to top, #141414 0%, transparent 30%)' }}
+        style={{
+          background: "linear-gradient(to top, #141414 0%, transparent 30%)",
+        }}
       />
 
       {/* Layer 4 — content. */}
@@ -76,21 +81,27 @@ export function Billboard({ billboard }: { billboard: BillboardData }) {
             alt={billboard.name}
             className="mb-4 max-h-32 w-auto origin-bottom-left"
             style={{
-              transform: showTrailer ? 'scale(0.7) translateY(2rem)' : 'none',
-              transition: 'transform var(--duration-slow) var(--ease-standard)',
+              transform: showTrailer ? "scale(0.7) translateY(2rem)" : "none",
+              transition: "transform var(--duration-slow) var(--ease-standard)",
             }}
           />
         ) : (
           <h1
             id="billboard-heading"
             className="mb-4 font-bold"
-            style={{ fontSize: 'var(--text-billboard)', letterSpacing: '-0.02em' }}
+            style={{
+              fontSize: "var(--text-billboard)",
+              letterSpacing: "-0.02em",
+            }}
           >
             {billboard.name}
           </h1>
         )}
 
-        <p className="mb-5 line-clamp-3" style={{ color: 'var(--color-text-secondary)' }}>
+        <p
+          className="mb-5 line-clamp-3"
+          style={{ color: "var(--color-text-secondary)" }}
+        >
           {billboard.synopsis}
         </p>
 
@@ -98,14 +109,14 @@ export function Billboard({ billboard }: { billboard: BillboardData }) {
           <button
             type="button"
             className="rounded px-6 py-2 font-medium text-black transition-opacity hover:opacity-80"
-            style={{ backgroundColor: 'var(--color-text-primary)' }}
+            style={{ backgroundColor: "var(--color-text-primary)" }}
           >
             ▶ Phát
           </button>
           <button
             type="button"
             className="rounded px-6 py-2 font-medium transition-colors"
-            style={{ backgroundColor: 'var(--color-bg-elevated)' }}
+            style={{ backgroundColor: "var(--color-bg-elevated)" }}
           >
             ⓘ Thông tin
           </button>

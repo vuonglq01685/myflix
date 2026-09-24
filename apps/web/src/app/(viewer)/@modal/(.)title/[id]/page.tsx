@@ -1,4 +1,4 @@
-import { TitleDetailModal } from '@/components/browse/title-detail-modal';
+import { TitleDetailModal } from "@/components/browse/title-detail-modal";
 
 /** Intercepts /title/[id] when navigated to client-side. Back closes it. */
 export default async function InterceptedTitlePage({

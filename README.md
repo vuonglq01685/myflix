@@ -32,18 +32,19 @@ myflix/
 
 Minimum dependency versions (verified against the running host/containers at acceptance time, not just declared here):
 
-| Dependency | Minimum |
-|---|---|
-| NVIDIA Driver | Linux 550.54.14 / Windows 551.76 |
-| NVIDIA Container Toolkit | 1.14.0 |
-| Docker Engine | 24.x |
-| FFmpeg | 6.1+ (built with `--enable-nvenc --enable-cuda-nvcc`, see `infra/ffmpeg/Dockerfile`) |
-| Node.js | 20 LTS |
-| PostgreSQL | 16 |
-| Redis | 7 |
-| MinIO | `RELEASE.2025-09-07T16-13-09Z` (server) and `RELEASE.2025-08-13T08-35-41Z` (`mc`), both pinned in `docker-compose.yml`. Both images come from quay.io, not Docker Hub — MinIO removed its Docker Hub repositories |
+| Dependency               | Minimum                                                                                                                                                                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NVIDIA Driver            | Linux 550.54.14 / Windows 551.76                                                                                                                                                                                  |
+| NVIDIA Container Toolkit | 1.14.0                                                                                                                                                                                                            |
+| Docker Engine            | 24.x                                                                                                                                                                                                              |
+| FFmpeg                   | 6.1+ (built with `--enable-nvenc --enable-cuda-nvcc`, see `infra/ffmpeg/Dockerfile`)                                                                                                                              |
+| Node.js                  | 20 LTS                                                                                                                                                                                                            |
+| PostgreSQL               | 16                                                                                                                                                                                                                |
+| Redis                    | 7                                                                                                                                                                                                                 |
+| MinIO                    | `RELEASE.2025-09-07T16-13-09Z` (server) and `RELEASE.2025-08-13T08-35-41Z` (`mc`), both pinned in `docker-compose.yml`. Both images come from quay.io, not Docker Hub — MinIO removed its Docker Hub repositories |
 
 **Clean-machine bring-up** (Q16: no image, no named volume of this project, no `.env` — the repo itself is already at its current state):
+
 1. `cp .env.example .env`, then replace every `change-me-*` placeholder.
    **Two pairs share one literal each and must be edited to the same new value within the pair:** `POSTGRES_PASSWORD` and the password embedded in `DATABASE_URL` (`.env.example:8,10`), and `MINIO_ROOT_PASSWORD` and `S3_SECRET_KEY` (`.env.example:19,23`). `docker-compose.yml` passes `DATABASE_URL` straight through, with no interpolation from `POSTGRES_PASSWORD`, so nothing reconciles them for you. Giving the members of a pair different values breaks authentication, but the two fail very differently. **The first fails loudly:** `postgres` and `api`/`transcoder` disagree, `api`'s `/health` returns 503, so `api` never turns healthy, `web` and `nginx` never start, and `docker compose up -d --wait` times out. **The second fails silently:** `minio` and `minio-init` are given only `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` — neither merges the `x-app-env` anchor that carries `S3_SECRET_KEY`, and `scripts/minio-init.sh` aliases with the same root credentials the server was given — so bring-up succeeds, no healthcheck touches S3, and **all five DoD items go green**. The break surfaces only at runtime, when `api`/`transcoder` sign S3 requests as `S3_ACCESS_KEY` with the wrong secret and every upload and transcode output fails. A green verification run does not rule this out.
 2. `docker compose up -d --wait --wait-timeout 180` — builds the FFmpeg image (source build, the single largest consumer of the 30-minute budget below) then starts all 8 services — the 7 long-running ones plus the one-shot `minio-init`, which creates the buckets and exits. `make up` is the day-to-day shortcut, but it omits `--wait`, so it does not enforce the 180-second bound below.
@@ -69,11 +70,11 @@ No NVIDIA GPU on this machine (a Mac, or CI):
 make up-cpu              # libx264 fallback — NFR-15/NFR-16 will not be met
 ```
 
-| URL | What |
-|---|---|
-| http://localhost | app (everything goes through nginx) |
+| URL                         | What                                      |
+| --------------------------- | ----------------------------------------- |
+| http://localhost            | app (everything goes through nginx)       |
 | http://localhost/api/health | health check, 503 if a dependency is down |
-| http://localhost:9001 | MinIO console |
+| http://localhost:9001       | MinIO console                             |
 
 ## The three hard constraints
 

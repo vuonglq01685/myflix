@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Doc 13 §6: 8 scenarios, sequential (transcode concurrency is 1), Chrome
@@ -7,17 +7,21 @@ import { defineConfig, devices } from '@playwright/test';
  * scenario spans web + api + transcoder, none of which owns it.
  */
 export default defineConfig({
-  testDir: './tests',
+  testDir: "./tests",
   fullyParallel: false,
   workers: 1,
   retries: 0,
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost',
-    trace: 'retain-on-failure',
+    baseURL: process.env.E2E_BASE_URL ?? "http://localhost",
+    trace: "retain-on-failure",
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, grep: /@player/ },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] }, grep: /@player/ },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+      grep: /@player/,
+    },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, grep: /@player/ },
   ],
 });

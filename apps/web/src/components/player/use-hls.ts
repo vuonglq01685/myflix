@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 /** hls.js tuning from HLD §7.1. */
 export const HLS_CONFIG = {
@@ -34,7 +34,7 @@ export function useHls(masterUrl: string | null): UseHlsResult {
     const video = videoRef.current;
     if (!video || !masterUrl) return;
 
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = masterUrl;
       return;
     }
@@ -42,10 +42,10 @@ export function useHls(masterUrl: string | null): UseHlsResult {
     let destroy = () => {};
     let cancelled = false;
 
-    void import('hls.js').then(({ default: Hls }) => {
+    void import("hls.js").then(({ default: Hls }) => {
       if (cancelled) return;
       if (!Hls.isSupported()) {
-        setError('Trình duyệt không hỗ trợ Media Source Extensions');
+        setError("Trình duyệt không hỗ trợ Media Source Extensions");
         return;
       }
 

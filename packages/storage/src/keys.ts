@@ -6,16 +6,19 @@
  */
 export const keys = {
   source: (assetId: string, extension: string) =>
-    `${assetId}/original.${extension.replace(/^\./, '')}`,
+    `${assetId}/original.${extension.replace(/^\./, "")}`,
 
   staging: (jobId: string, rest: string) => `${jobId}/${rest}`,
 
   master: (assetId: string) => `${assetId}/master.m3u8`,
-  videoPlaylist: (assetId: string, rendition: string) => `${assetId}/v/${rendition}/playlist.m3u8`,
+  videoPlaylist: (assetId: string, rendition: string) =>
+    `${assetId}/v/${rendition}/playlist.m3u8`,
   audioPlaylist: (assetId: string) => `${assetId}/a/aac-128k/playlist.m3u8`,
-  subtitlePlaylist: (assetId: string, lang: string) => `${assetId}/s/${lang}/playlist.m3u8`,
+  subtitlePlaylist: (assetId: string, lang: string) =>
+    `${assetId}/s/${lang}/playlist.m3u8`,
   previewClip: (assetId: string) => `${assetId}/preview.mp4`,
-  sprite: (assetId: string, index = 0) => `${assetId}/sprite-${String(index).padStart(2, '0')}.jpg`,
+  sprite: (assetId: string, index = 0) =>
+    `${assetId}/sprite-${String(index).padStart(2, "0")}.jpg`,
   spriteVtt: (assetId: string) => `${assetId}/sprite.vtt`,
   assetPrefix: (assetId: string) => `${assetId}/`,
 

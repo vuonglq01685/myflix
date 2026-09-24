@@ -12,15 +12,51 @@ export interface Rung {
   bitrateKbps: number;
   maxrateKbps: number;
   bufsizeKbps: number;
-  profile: 'high' | 'main';
+  profile: "high" | "main";
   cq: number;
 }
 
 export const LADDER: readonly Rung[] = [
-  { name: '1080p', width: 1920, height: 1080, bitrateKbps: 5000, maxrateKbps: 5500, bufsizeKbps: 10000, profile: 'high', cq: 23 },
-  { name: '720p',  width: 1280, height: 720,  bitrateKbps: 3000, maxrateKbps: 3300, bufsizeKbps: 6000,  profile: 'high', cq: 23 },
-  { name: '480p',  width: 854,  height: 480,  bitrateKbps: 1500, maxrateKbps: 1650, bufsizeKbps: 3000,  profile: 'main', cq: 25 },
-  { name: '360p',  width: 640,  height: 360,  bitrateKbps: 800,  maxrateKbps: 880,  bufsizeKbps: 1600,  profile: 'main', cq: 27 },
+  {
+    name: "1080p",
+    width: 1920,
+    height: 1080,
+    bitrateKbps: 5000,
+    maxrateKbps: 5500,
+    bufsizeKbps: 10000,
+    profile: "high",
+    cq: 23,
+  },
+  {
+    name: "720p",
+    width: 1280,
+    height: 720,
+    bitrateKbps: 3000,
+    maxrateKbps: 3300,
+    bufsizeKbps: 6000,
+    profile: "high",
+    cq: 23,
+  },
+  {
+    name: "480p",
+    width: 854,
+    height: 480,
+    bitrateKbps: 1500,
+    maxrateKbps: 1650,
+    bufsizeKbps: 3000,
+    profile: "main",
+    cq: 25,
+  },
+  {
+    name: "360p",
+    width: 640,
+    height: 360,
+    bitrateKbps: 800,
+    maxrateKbps: 880,
+    bufsizeKbps: 1600,
+    profile: "main",
+    cq: 27,
+  },
 ] as const;
 
 export const AUDIO_BITRATE_KBPS = 128;

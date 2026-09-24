@@ -1,10 +1,11 @@
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 
 const config: NextConfig = {
   reactStrictMode: true,
   // Docker: ship only the traced server bundle instead of the whole workspace.
-  output: 'standalone',
-  outputFileTracingRoot: process.env.NODE_ENV === 'production' ? '../../' : undefined,
+  output: "standalone",
+  outputFileTracingRoot:
+    process.env.NODE_ENV === "production" ? "../../" : undefined,
   experimental: {
     // @myflix/shared is workspace TypeScript, not a prebuilt package.
     externalDir: true,

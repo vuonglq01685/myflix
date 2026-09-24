@@ -10,11 +10,11 @@ import {
   PutObjectCommand,
   S3Client,
   UploadPartCommand,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import type { Readable } from 'node:stream';
-import type { CompletedPart, PartUrl } from '@myflix/shared';
-import type { BucketNames } from './keys';
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import type { Readable } from "node:stream";
+import type { CompletedPart, PartUrl } from "@myflix/shared";
+import type { BucketNames } from "./keys";
 
 export interface StorageOptions {
   endpoint: string;
@@ -52,11 +52,20 @@ export class StorageClient {
 
   // ── Multipart upload (browser -> storage, never through Node) ─────────────
 
-  async createMultipartUpload(bucket: string, key: string, contentType: string): Promise<string> {
+  async createMultipartUpload(
+    bucket: string,
+    key: string,
+    contentType: string,
+  ): Promise<string> {
     const out = await this.s3.send(
-      new CreateMultipartUploadCommand({ Bucket: bucket, Key: key, ContentType: contentType }),
+      new CreateMultipartUploadCommand({
+        Bucket: bucket,
+        Key: key,
+        ContentType: contentType,
+      }),
     );
-    if (!out.UploadId) throw new Error(`no uploadId returned for ${bucket}/${key}`);
+    if (!out.UploadId)
+      throw new Error(`no uploadId returned for ${bucket}/${key}`);
     return out.UploadId;
   }
 
@@ -67,7 +76,10 @@ export class StorageClient {
     from: number;
     to: number;
   }): Promise<PartUrl[]> {
-    const numbers = Array.from({ length: params.to - params.from + 1 }, (_, i) => params.from + i);
+    const numbers = Array.from(
+      { length: params.to - params.from + 1 },
+      (_, i) => params.from + i,
+    );
     return Promise.all(
       numbers.map(async (partNumber) => ({
         partNumber,
@@ -86,11 +98,17 @@ export class StorageClient {
   }
 
   /** Server-side truth for resuming an interrupted upload. */
-  async listUploadedParts(bucket: string, key: string, uploadId: string): Promise<number[]> {
+  async listUploadedParts(
+    bucket: string,
+    key: string,
+    uploadId: string,
+  ): Promise<number[]> {
     const out = await this.s3.send(
       new ListPartsCommand({ Bucket: bucket, Key: key, UploadId: uploadId }),
     );
-    return (out.Parts ?? []).map((p) => p.PartNumber).filter((n): n is number => n !== undefined);
+    return (out.Parts ?? [])
+      .map((p) => p.PartNumber)
+      .filter((n): n is number => n !== undefined);
   }
 
   async completeMultipartUpload(
@@ -113,22 +131,42 @@ export class StorageClient {
     );
   }
 
-  abortMultipartUpload(bucket: string, key: string, uploadId: string): Promise<unknown> {
+  abortMultipartUpload(
+    bucket: string,
+    key: string,
+    uploadId: string,
+  ): Promise<unknown> {
     return this.s3.send(
-      new AbortMultipartUploadCommand({ Bucket: bucket, Key: key, UploadId: uploadId }),
+      new AbortMultipartUploadCommand({
+        Bucket: bucket,
+        Key: key,
+        UploadId: uploadId,
+      }),
     );
   }
 
   // ── Plain object operations ───────────────────────────────────────────────
 
   async getStream(bucket: string, key: string): Promise<Readable> {
-    const out = await this.s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const out = await this.s3.send(
+      new GetObjectCommand({ Bucket: bucket, Key: key }),
+    );
     return out.Body as Readable;
   }
 
-  putObject(bucket: string, key: string, body: Buffer | Readable, contentType?: string) {
+  putObject(
+    bucket: string,
+    key: string,
+    body: Buffer | Readable,
+    contentType?: string,
+  ) {
     return this.s3.send(
-      new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }),
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
     );
   }
 
@@ -137,7 +175,11 @@ export class StorageClient {
     let token: string | undefined;
     do {
       const out = await this.s3.send(
-        new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }),
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          Prefix: prefix,
+          ContinuationToken: token,
+        }),
       );
       for (const item of out.Contents ?? []) if (item.Key) found.push(item.Key);
       token = out.NextContinuationToken;
@@ -156,7 +198,10 @@ export class StorageClient {
     toBucket: string;
     toPrefix: string;
   }): Promise<number> {
-    const sourceKeys = await this.listKeys(params.fromBucket, params.fromPrefix);
+    const sourceKeys = await this.listKeys(
+      params.fromBucket,
+      params.fromPrefix,
+    );
     for (const key of sourceKeys) {
       const suffix = key.slice(params.fromPrefix.length);
       await this.s3.send(
