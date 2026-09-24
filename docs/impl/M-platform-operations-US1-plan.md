@@ -571,7 +571,9 @@ plan-quality finding.
 
 ## Task 10 — CPU-fallback ladder cap + encoder-aware FFmpeg args (AC21) — **conditional, dispatched with an explicit gate value**
 
-> **STATUS: NOT RUN — its governing input does not exist.** This task is conditional on a gate value,
+> **STATUS (2026-09-24): RUN as TRIGGERED — see `Review:` below.** The history that follows records why it was not run earlier.
+>
+> **Earlier STATUS: NOT RUN — its governing input does not exist.** This task is conditional on a gate value,
 > the two words `TRIGGERED` or `NOT TRIGGERED`, which the Interfaces below define as a **Project Owner
 > decision stated at dispatch**, explicitly "not something derived from reading another task". **No gate
 > value was supplied**, so the task was never dispatched. It was not guessed, not derived from any other
@@ -613,8 +615,8 @@ plan-quality finding.
 
 **Steps**
 
-- [ ] Act on the gate value given at dispatch (see Interfaces). If **NOT TRIGGERED**, write the single line specified there and stop — no further steps apply. If **TRIGGERED**, continue with the failing test below.
-- [ ] (Host, no Docker/GPU needed — pure TypeScript unit tests) Failing test — add to `packages/shared/src/media/media.test.ts`:
+- [x] Act on the gate value given at dispatch (see Interfaces). If **NOT TRIGGERED**, write the single line specified there and stop — no further steps apply. If **TRIGGERED**, continue with the failing test below.
+- [x] (Host, no Docker/GPU needed — pure TypeScript unit tests) Failing test — add to `packages/shared/src/media/media.test.ts`:
   ```ts
   test("AC21 CPU branch caps the ladder to exactly 720p and 480p", () => {
     const names = buildLadder(
@@ -625,7 +627,7 @@ plan-quality finding.
   });
   ```
   Run `pnpm --filter @myflix/shared test`. Expect: fails to compile — `buildLadder` does not accept a second argument yet.
-- [ ] Add to `apps/transcoder/src/ffmpeg/args.spec.ts` (jest, matching the existing `describe('buildLadderArgs', ...)` style — the real fixture in this file is the module-level `probe` object at `args.spec.ts:4-11` plus the `args()` helper at `:13`; there is no `baseOptions` fixture anywhere in this file):
+- [x] Add to `apps/transcoder/src/ffmpeg/args.spec.ts` (jest, matching the existing `describe('buildLadderArgs', ...)` style — the real fixture in this file is the module-level `probe` object at `args.spec.ts:4-11` plus the `args()` helper at `:13`; there is no `baseOptions` fixture anywhere in this file):
   ```ts
   it("omits -hwaccel and uses a CPU scale filter for a non-NVENC encoder", () => {
     const a = buildLadderArgs({
@@ -656,11 +658,39 @@ plan-quality finding.
   ```
   Run `pnpm --filter @myflix/transcoder test`. Expect: fails — `args.ts` always emits `-hwaccel`/`scale_cuda` today, and `buildLadder` is called with no second argument so the ladder is never capped.
   Similarly, for `buildPreviewArgs`, add `it('drops -hwaccel and uses plain scale for libx264')` following the same pattern against `-vf scale_cuda=854:480` (line 122).
-- [ ] Implement the `ladder.ts` `limitTo` option and `scaleFilterCpu` exactly as specified in Interfaces.
-- [ ] Implement the `args.ts` `useCuda` conditionals — including the `buildLadder(probe, ...)` pass-through — in both `buildLadderArgs` and `buildPreviewArgs` exactly as specified.
-- [ ] Re-run both test suites from the failing-test steps above. Expect: all pass, including the pre-existing tests in both files (regression check — the default-encoder path must be byte-identical to before).
-- [ ] Create `docs/decisions/phase0-encoder.md` with the required content above.
+- [x] Implement the `ladder.ts` `limitTo` option and `scaleFilterCpu` exactly as specified in Interfaces.
+- [x] Implement the `args.ts` `useCuda` conditionals — including the `buildLadder(probe, ...)` pass-through — in both `buildLadderArgs` and `buildPreviewArgs` exactly as specified.
+- [x] Re-run both test suites from the failing-test steps above. Expect: all pass, including the pre-existing tests in both files (regression check — the default-encoder path must be byte-identical to before).
+- [x] Create `docs/decisions/phase0-encoder.md` with the required content above.
 - [ ] (GPU host, for the CPU-fallback branch — build the CPU image, not the GPU one) `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml build transcoder`. Add `redis-tools` to `infra/ffmpeg/cpu-fallback.Dockerfile`'s `apt-get install` line (currently only `ffmpeg ca-certificates`, per this session's read) so the CPU-branch transcoder can also pass Task 4's `redis-cli -h redis ping` healthcheck.
+
+      ↳ **Left unticked and unrun** — no GPU host, and the CPU image build is independently blocked by the
+      manifest-copy defect at `infra/ffmpeg/cpu-fallback.Dockerfile:20-23` (routed to `/dev-plan`). The
+      `redis-tools` half needs no change: already on the `apt-get` line since `d053851` (A3 r1 confirmed `:13`).
+
+Review: ✅ r1 — A3 clean on both verdicts (spec compliance PASS + code quality PASS), independent opus reviewer.
+Dispatched **TRIGGERED** on 2026-09-24 by the Project Owner, via the Dev. Commit `2edbca3`. The reviewer checked the
+red step on `5fd9599` in a throwaway worktree and got `TS2554` in shared and exactly 3 failing transcoder tests. It
+also confirmed the default-encoder output is **byte-identical**: old and new `buildLadder`/`buildLadderArgs`/
+`buildPreviewArgs` dumps compared across 6 source sizes × {none, `h264_nvenc`, `hevc_nvenc`} plus 2 preview cases.
+`docs/decisions/phase0-encoder.md` carries two `%%TODO(PO)%%` placeholders: the budget-exhaustion date and which of
+AC4/AC5/AC8 failed. This was the Dev's decision, because neither fact exists yet. **The PO must fill both before handover.**
+
+One **SUGGESTED** finding lies outside this block's scope. The Dev routed it to `/dev-plan`, and it is not fixed here.
+The `libx264` path in `apps/transcoder/src/ffmpeg/args.ts` still emits NVENC-only rate-control flags
+(`-preset p5 -rc vbr -cq:v:0 23 -forced-idr 1`, and `-preset p4` in `buildPreviewArgs`). libx264 rejects
+`-preset p5`, so the CPU fallback these functions build would fail at runtime once `ffmpeg.service.ts`
+calls them (it does not yet). Until then, `phase0-encoder.md`'s "encodes with libx264" overstates what the code delivers.
+
+For the PR's `## Findings`:
+- (NOTE) A source smaller than 480p with the cap returns one `360p` rung, because the spec mandates that fallback. This
+  is a gap against AC21's "exactly 720p and 480p", and the PO should accept it.
+- (NOTE) The encoder doc records NFR-15 only, while the `cpu-fallback.Dockerfile:3` header also says NFR-16 is missed.
+- (NITS) `ladder.ts:93-95`: the comment's example is wrong. It was copied from this block, and a 480p source yields `[480p]`,
+  not an empty list. The `buildLadder` JSDoc does not describe `options`, and `scaleFilterCpu` has no direct unit test.
+  `limitTo` is typed as `readonly string[]`, not as a union of rung names.
+- (NOTE, repo-wins) The citation-comment format in `ts.md` is not used anywhere in `apps/` or `packages/`. The repo's
+  short-tag style (`AC21`) was followed instead.
 
 ## Task 11 — `scripts/verify-phase0.sh`: `--fresh` flag with correct rebuild ordering (AC19 part 1)
 
