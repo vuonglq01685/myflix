@@ -35,7 +35,10 @@ permissions:
   contents: read
 jobs:
   pr-lint:
-    runs-on: ubuntu-latest
+    # LOCAL DEVIATION (re-apply after `kb init`): self-hosted runner, not
+    # ubuntu-latest. GitHub-hosted minutes are blocked on this private repo's
+    # account billing; the self-hosted runner uses none.
+    runs-on: [self-hosted, strata-intake]
     env:
       # The description reaches the script through the environment and NEVER
       # through `${{ ... }}` inside `run:`. A PR body is attacker-controlled
