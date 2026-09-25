@@ -1,0 +1,10 @@
+---
+applyTo: "**/*.spec.ts,**/*.spec.js,**/e2e/**/*.ts,**/e2e/**/*.js"
+---
+
+Before writing or reviewing e2e-playwright code, read `docs/conventions/e2e-playwright.md`
+and the five pack files it links under `docs/conventions/e2e-playwright/` and
+`docs/conventions/common/`. If `docs/conventions/e2e-playwright.local.md` exists it
+overrides them all. Where any of them conflicts with the repo's existing
+dominant style, the repo wins locally — record the conflict as a finding in
+the PR.
