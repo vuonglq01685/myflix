@@ -1,32 +1,26 @@
 id: myflix-code
 title: myflix — code knowledge
-revision: '2946696'
-ingested: '2026-09-22'
+revision: 5b399de
+ingested: '2026-09-25'
 source_sha256: ''
 sections:
 - id: cmd.build
   title: Build command
-  summary: 'How to build this repository: pnpm -r build (npm run build) (source: package.json).'
+  summary: 'How to build this repository: pnpm -r build (source: CI: .github/workflows/ci.yml#build-test-lint).'
   status: summarized
   file: commands
   tokens:
-    l2: 327
-    l3: 301
+    l2: 383
+    l3: 345
 - id: cmd.lint
   title: Lint command
-  summary: 'Brief section: Lint command.'
+  summary: 'How to lint this repository: npx eslint . && npx prettier --check . (source:
+    CI: .github/workflows/ci.yml#build-test-lint).'
   status: summarized
   file: commands
   tokens:
-    l2: 22
-    l3: 22
-  l3_sha256: 11b2bbdcc01e166607e8e425af9cb53e9c5728ce71fb5fdf2b16818e3fdc4322
-  provenance:
-    runner: none
-    model: ''
-    effort: ''
-    prompt_sha: 141999d58ae6
-    at: '2026-09-22T05:22:15Z'
+    l2: 96
+    l3: 70
 - id: cmd.run
   title: Run command
   summary: 'How to run this repository: pnpm -r --parallel dev (npm run dev) (source:
@@ -38,12 +32,12 @@ sections:
     l3: 141
 - id: cmd.test
   title: Test command
-  summary: 'How to test this repository: pnpm -r test (npm test) (source: package.json).'
+  summary: 'How to test this repository: pnpm -r test (source: CI: .github/workflows/ci.yml#build-test-lint).'
   status: summarized
   file: commands
   tokens:
-    l2: 354
-    l3: 331
+    l2: 376
+    l3: 341
 - id: db.DeletionQueue
   title: DeletionQueue
   summary: 'Table DeletionQueue: 8 columns, PK id (source: packages/db/prisma/schema.prisma).'
@@ -166,142 +160,95 @@ sections:
     l3: 159
 - id: dep.node
   title: Node dependencies
-  summary: '32 direct Node dependencies; 20 more in 1 group (dev); frameworks: NestJS,
+  summary: '33 direct Node dependencies; 24 more in 1 group (dev); frameworks: NestJS,
     Next.js, Playwright, React.'
   status: summarized
   file: deps
   tokens:
-    l2: 520
-    l3: 548
+    l2: 544
+    l3: 594
 - id: int.other
   title: other
-  summary: 'Brief section: other.'
+  summary: 'External integration other: configured through 3 environment keys (API_INTERNAL_URL,
+    DATABASE_URL, NEXT_PUBLIC_API_BASE_URL).'
   status: summarized
   file: integrations
   tokens:
-    l2: 73
+    l2: 56
     l3: 21
-  l3_sha256: 6d578fe7da4d0ce335db916229d1fe693c00744aab2b750bdfd7cb545c23d399
-  provenance:
-    runner: none
-    model: ''
-    effort: ''
-    prompt_sha: 141999d58ae6
-    at: '2026-09-22T05:22:15Z'
 - id: int.redis
   title: redis
-  summary: 'Brief section: redis.'
+  summary: 'External integration redis: configured through 3 environment keys (REDIS_HOST,
+    REDIS_PORT, REDIS_URL).'
   status: summarized
   file: integrations
   tokens:
-    l2: 68
+    l2: 55
     l3: 17
-  l3_sha256: d66b848521fd5f33879f7ae9f8c615925a930bdf881779fcd644221ccc902db7
-  provenance:
-    runner: none
-    model: ''
-    effort: ''
-    prompt_sha: 141999d58ae6
-    at: '2026-09-22T05:22:15Z'
 - id: int.s3
   title: s3
-  summary: 'Brief section: s3.'
+  summary: 'External integration s3: configured through 7 environment keys (MINIO_ROOT_PASSWORD,
+    MINIO_ROOT_USER, S3_ACCESS_KEY, S3_ENDPOINT, S3_FORCE_PATH_STYLE, S3_REGION, S3_SECRET_KEY).'
   status: summarized
   file: integrations
   tokens:
-    l2: 153
+    l2: 115
     l3: 44
-  l3_sha256: d8fbbba13a44939c6d84c932d63004248e155b117f25aac192422afefdd1ad3b
-  provenance:
-    runner: none
-    model: ''
-    effort: ''
-    prompt_sha: 141999d58ae6
-    at: '2026-09-22T05:22:15Z'
 - id: svc.api
   title: api
   summary: 'Container api from docker-compose.yml, apps/api/Dockerfile: image build:
-    apps/api/Dockerfile (FROM build), ports 4000, depends on minio, postgres, redis.'
+    apps/api/Dockerfile (FROM build), ports 127.0.0.1:4000:4000, depends on minio,
+    minio-init, postgres, redis.'
   status: summarized
   file: services
   tokens:
-    l2: 229
-    l3: 232
+    l2: 231
+    l3: 235
 - id: svc.minio
   title: minio
-  summary: 'Brief section: minio.'
+  summary: 'Container minio from docker-compose.yml: image quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z,
+    ports 127.0.0.1:9001:9001, depends on nothing.'
   status: summarized
   file: services
   tokens:
-    l2: 128
-    l3: 64
-  l3_sha256: 3dda01bb91301b85b694fac2d7a635f9b6bc20c10a3a2190267e4475c55f6406
-  provenance:
-    runner: none
-    model: ''
-    effort: ''
-    prompt_sha: 141999d58ae6
-    at: '2026-09-22T05:22:15Z'
+    l2: 127
+    l3: 89
 - id: svc.minio-init
   title: minio-init
-  summary: 'Brief section: minio-init.'
+  summary: 'Container minio-init from docker-compose.yml: image quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z,
+    ports none, depends on minio.'
   status: summarized
   file: services
   tokens:
-    l2: 122
-    l3: 63
-  l3_sha256: 1a4f0d6b576adadd7f47fe9bcabb996f0ae55886fe506db14de5f0c1b094425c
-  provenance:
-    runner: none
-    model: ''
-    effort: ''
-    prompt_sha: 141999d58ae6
-    at: '2026-09-22T05:22:15Z'
+    l2: 117
+    l3: 80
 - id: svc.nginx
   title: nginx
-  summary: 'Brief section: nginx.'
+  summary: 'Container nginx from docker-compose.yml: image nginx:1.27-alpine, ports
+    80:80, depends on api, minio, web.'
   status: summarized
   file: services
   tokens:
-    l2: 143
+    l2: 90
     l3: 73
-  l3_sha256: bdf1759e5b59e99c4e1e0e94a8688858948cb18f291b3a5b1950efc18c9661ef
-  provenance:
-    runner: none
-    model: ''
-    effort: ''
-    prompt_sha: 141999d58ae6
-    at: '2026-09-22T05:22:15Z'
 - id: svc.postgres
   title: postgres
-  summary: 'Brief section: postgres.'
+  summary: 'Container postgres from docker-compose.yml: image postgres:16-alpine,
+    ports none, depends on nothing.'
   status: summarized
   file: services
   tokens:
-    l2: 116
+    l2: 77
     l3: 57
-  l3_sha256: 343093c9e828d9c5c7c2e1ef94c280ba4322ce742307729112c04c842382cc10
-  provenance:
-    runner: none
-    model: ''
-    effort: ''
-    prompt_sha: 141999d58ae6
-    at: '2026-09-22T05:22:15Z'
 - id: svc.redis
   title: redis
-  summary: 'Brief section: redis.'
+  summary: 'Container redis from docker-compose.yml: image redis:7-alpine, ports none,
+    depends on nothing.'
   status: summarized
   file: services
   tokens:
-    l2: 91
+    l2: 66
     l3: 42
-  l3_sha256: 8e70def1e2ab8875f4f569e105f866918cd7b78366eca7ab74e3d412c4955d41
-  provenance:
-    runner: none
-    model: ''
-    effort: ''
-    prompt_sha: 141999d58ae6
-    at: '2026-09-22T05:22:15Z'
 - id: svc.transcoder
   title: transcoder
   summary: 'Container transcoder from docker-compose.yml, infra/ffmpeg/Dockerfile:
@@ -315,19 +262,19 @@ sections:
 - id: svc.web
   title: web
   summary: 'Container web from docker-compose.yml, apps/web/Dockerfile: image build:
-    apps/web/Dockerfile (FROM build), ports 3000, depends on api.'
+    apps/web/Dockerfile (FROM build), ports 127.0.0.1:3000:3000, depends on api.'
   status: summarized
   file: services
   tokens:
-    l2: 180
-    l3: 172
+    l2: 188
+    l3: 180
 - id: struct.tree
   title: Repository tree
-  summary: 'Repository layout: 93 directories, 179 tracked files, entry points: apps/api/src/common/decorators/index.ts,
+  summary: 'Repository layout: 106 directories, 237 tracked files, entry points: apps/api/src/common/decorators/index.ts,
     packages/db/src/index.ts, packages/shared/src/index.ts, packages/storage/src/index.ts;
     console scripts: none detected.'
   status: summarized
   file: structure
   tokens:
-    l2: 137
-    l3: 1212
+    l2: 184
+    l3: 1695
