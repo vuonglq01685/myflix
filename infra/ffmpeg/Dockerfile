@@ -50,8 +50,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # `video` in NVIDIA_DRIVER_CAPABILITIES is mandatory. Without it nvidia-smi
 # still works but NVENC is invisible — a notoriously hard failure to diagnose.
 
+# redis-tools is here only for redis-cli, which docker-compose.yml's transcoder
+# healthcheck runs to prove the queue dependency (AC14 Q2) — nothing else uses it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libx264-163 libx265-199 libass9 libfdk-aac2 ca-certificates curl gnupg \
+      libx264-163 libx265-199 libass9 libfdk-aac2 ca-certificates curl gnupg redis-tools \
  && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
  && apt-get install -y --no-install-recommends nodejs \
  && npm install -g pnpm@10 \
@@ -67,12 +69,14 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/db/package.json     ./packages/db/
+COPY packages/storage/package.json ./packages/storage/
 COPY apps/transcoder/package.json ./apps/transcoder/
 RUN pnpm install --frozen-lockfile=false
 
 COPY . .
 RUN pnpm --filter @myflix/db generate \
  && pnpm --filter @myflix/shared build \
+ && pnpm --filter @myflix/storage build \
  && pnpm --filter @myflix/db build \
  && pnpm --filter @myflix/transcoder build
 

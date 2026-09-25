@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 const NAV = [
-  { href: '/browse', label: 'Trang chủ' },
-  { href: '/genre/movie', label: 'Phim' },
-  { href: '/genre/series', label: 'Series' },
-  { href: '/my-list', label: 'Danh sách của tôi' },
+  { href: "/browse", label: "Trang chủ" },
+  { href: "/genre/movie", label: "Phim" },
+  { href: "/genre/series", label: "Series" },
+  { href: "/my-list", label: "Danh sách của tôi" },
 ];
 
 /**
@@ -21,21 +21,25 @@ export function SiteHeader() {
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 0);
     onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
     <header
       className="fixed inset-x-0 top-0 z-50 flex items-center gap-8 page-x transition-colors"
       style={{
-        height: 'var(--size-header)',
-        backgroundColor: scrolled ? 'var(--color-bg-page)' : 'transparent',
-        transitionDuration: 'var(--duration-base)',
-        transitionTimingFunction: 'var(--ease-standard)',
+        height: "var(--size-header)",
+        backgroundColor: scrolled ? "var(--color-bg-page)" : "transparent",
+        transitionDuration: "var(--duration-base)",
+        transitionTimingFunction: "var(--ease-standard)",
       }}
     >
-      <Link href="/browse" className="text-2xl font-bold tracking-tight" style={{ color: 'var(--color-brand)' }}>
+      <Link
+        href="/browse"
+        className="text-2xl font-bold tracking-tight"
+        style={{ color: "var(--color-brand)" }}
+      >
         MYFLIX
       </Link>
 
@@ -46,7 +50,7 @@ export function SiteHeader() {
               <Link
                 href={item.href}
                 className="transition-colors hover:text-white"
-                style={{ color: 'var(--color-text-secondary)' }}
+                style={{ color: "var(--color-text-secondary)" }}
               >
                 {item.label}
               </Link>

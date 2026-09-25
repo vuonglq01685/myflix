@@ -1,13 +1,13 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable, NotImplementedException } from "@nestjs/common";
 import {
   ErrorCode,
   MAX_PROFILES_PER_USER,
   type CreateProfileRequest,
   type ProfileSummary,
   type UpdateProfileRequest,
-} from '@myflix/shared';
-import { PrismaService } from '../prisma/prisma.service';
-import { BusinessError } from '../common/filters/all-exceptions.filter';
+} from "@myflix/shared";
+import { PrismaService } from "../prisma/prisma.service";
+import { BusinessError } from "../common/filters/all-exceptions.filter";
 
 @Injectable()
 export class ProfilesService {
@@ -15,7 +15,7 @@ export class ProfilesService {
 
   list(userId: string): Promise<ProfileSummary[]> {
     return this.prisma.profile
-      .findMany({ where: { userId }, orderBy: { createdAt: 'asc' } })
+      .findMany({ where: { userId }, orderBy: { createdAt: "asc" } })
       .then((rows) =>
         rows.map((p) => ({
           id: p.id,
@@ -38,15 +38,19 @@ export class ProfilesService {
   }
 
   create(_userId: string, _dto: CreateProfileRequest): Promise<ProfileSummary> {
-    throw new NotImplementedException('ProfilesService.create');
+    throw new NotImplementedException("ProfilesService.create");
   }
 
-  update(_userId: string, _id: string, _dto: UpdateProfileRequest): Promise<ProfileSummary> {
-    throw new NotImplementedException('ProfilesService.update');
+  update(
+    _userId: string,
+    _id: string,
+    _dto: UpdateProfileRequest,
+  ): Promise<ProfileSummary> {
+    throw new NotImplementedException("ProfilesService.update");
   }
 
   // TODO(phase-2): refuse to delete the last remaining profile.
   remove(_userId: string, _id: string): Promise<void> {
-    throw new NotImplementedException('ProfilesService.remove');
+    throw new NotImplementedException("ProfilesService.remove");
   }
 }

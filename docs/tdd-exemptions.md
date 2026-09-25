@@ -27,18 +27,18 @@ prevent.
 **The four categories.** The slug is one of exactly these; a change that fits
 none of them is not exempt.
 
-| Slug | Covers | What you owe instead |
-|---|---|---|
-| `config` | config files, dependency bumps, scaffold changes | run the thing you just configured and paste the output — the build, `kb doctor`, the service starting |
-| `ci` | workflow, job and gate definitions | that workflow's own run on this PR: link and status |
-| `docs` | README, QUICKSTART, prose, skill text | paste the diff and any link/render check |
-| `style` | formatting, renames, file moves with no behaviour change | the existing suite green **before and after**, plus the command showing behaviour is unchanged |
+| Slug     | Covers                                                   | What you owe instead                                                                                  |
+| -------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `config` | config files, dependency bumps, scaffold changes         | run the thing you just configured and paste the output — the build, `kb doctor`, the service starting |
+| `ci`     | workflow, job and gate definitions                       | that workflow's own run on this PR: link and status                                                   |
+| `docs`   | README, QUICKSTART, prose, skill text                    | paste the diff and any link/render check                                                              |
+| `style`  | formatting, renames, file moves with no behaviour change | the existing suite green **before and after**, plus the command showing behaviour is unchanged        |
 
 **`docs` is not an extension whitelist.** Where a repo pins document content
 with a test — canon tests over template text, snapshot tests over generated
 docs — a documentation change still owes a test, and is not exempt. The
-question is always *"is there a test that can observe this?"*, never *"what is
-this file's extension?"*.
+question is always _"is there a test that can observe this?"_, never _"what is
+this file's extension?"_.
 
 Every exemption taken during a ticket is reported in the PR description under
 `## TDD exemptions`, one line each, copied from the plan. The CI gate

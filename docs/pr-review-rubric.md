@@ -5,12 +5,12 @@ is read after this file and wins where the two disagree.
 
 Severity ladder, used by every review in the flow:
 
-| Level | Meaning |
-|---|---|
-| **BLOCKER** | Ships a production incident, a security or permission hole, data corruption or loss, or a broken contract. No approval while one stands. |
-| **SUGGESTED** | Should be fixed now: maintainability, missing monitoring, a fragile construction. |
-| **NOTE** | Worth improving later. Record it; do not block. |
-| **NITS** | Naming, formatting, dead code. |
+| Level         | Meaning                                                                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **BLOCKER**   | Ships a production incident, a security or permission hole, data corruption or loss, or a broken contract. No approval while one stands. |
+| **SUGGESTED** | Should be fixed now: maintainability, missing monitoring, a fragile construction.                                                        |
+| **NOTE**      | Worth improving later. Record it; do not block.                                                                                          |
+| **NITS**      | Naming, formatting, dead code.                                                                                                           |
 
 ## Pre-code axes
 
@@ -40,7 +40,7 @@ and more than one running instance.
 
 **The diff alone is not the review.** Open the files the change reaches —
 callers, siblings, migrations, permission declarations, contracts, tests — and
-trace the affected flow end to end before judging. A finding states *why* it is
+trace the affected flow end to end before judging. A finding states _why_ it is
 dangerous by tracing the concrete logic, not by naming a category.
 
 ### Security & authorization
@@ -111,9 +111,9 @@ dangerous by tracing the concrete logic, not by naming a category.
 
 A review returns a table and a verdict line, nothing else:
 
-| Severity | File | Line | Why it is dangerous | Fix |
-|---|---|---|---|---|
-| BLOCKER | `src/orders/service.py` | 118 | … | … |
+| Severity | File                    | Line | Why it is dangerous | Fix |
+| -------- | ----------------------- | ---- | ------------------- | --- |
+| BLOCKER  | `src/orders/service.py` | 118  | …                   | …   |
 
 Blocking: No
 

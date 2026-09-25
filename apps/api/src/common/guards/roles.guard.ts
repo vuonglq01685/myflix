@@ -1,7 +1,12 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import type { UserRole } from '@myflix/shared';
-import { ROLES_KEY, type RequestUser } from '../decorators';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import type { UserRole } from "@myflix/shared";
+import { ROLES_KEY, type RequestUser } from "../decorators";
 
 /**
  * Authorisation lives here, not in the UI. The admin screens sharing a
@@ -19,9 +24,10 @@ export class RolesGuard implements CanActivate {
     ]);
     if (!required?.length) return true;
 
-    const user = context.switchToHttp().getRequest().user as RequestUser | undefined;
+    const user = context.switchToHttp().getRequest().user as
+      RequestUser | undefined;
     if (!user || !required.includes(user.role)) {
-      throw new ForbiddenException('Không đủ quyền truy cập');
+      throw new ForbiddenException("Không đủ quyền truy cập");
     }
     return true;
   }

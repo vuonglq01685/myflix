@@ -1,9 +1,19 @@
-import type { UserRole } from '../enums';
+import type { UserRole } from "../enums";
 
-export interface RegisterRequest { email: string; password: string }
-export interface RegisterResponse { userId: string; email: string; role: UserRole }
+export interface RegisterRequest {
+  email: string;
+  password: string;
+}
+export interface RegisterResponse {
+  userId: string;
+  email: string;
+  role: UserRole;
+}
 
-export interface LoginRequest { email: string; password: string }
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
 export interface LoginResponse {
   accessToken: string;
   expiresIn: number;
@@ -11,8 +21,15 @@ export interface LoginResponse {
   profiles: ProfileSummary[];
 }
 
-export interface AuthUser { id: string; email: string; role: UserRole }
-export interface RefreshResponse { accessToken: string; expiresIn: number }
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: UserRole;
+}
+export interface RefreshResponse {
+  accessToken: string;
+  expiresIn: number;
+}
 
 export interface ProfileSummary {
   id: string;

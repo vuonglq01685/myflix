@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { signMediaPath, type SignedMediaUrl } from '@myflix/shared';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { signMediaPath, type SignedMediaUrl } from "@myflix/shared";
 
 /**
  * Issues the signed media URLs nginx validates (ADR-006). After this point
@@ -12,10 +12,10 @@ export class MediaUrlService {
 
   sign(assetId: string, path: string): SignedMediaUrl {
     return signMediaPath({
-      secret: this.config.getOrThrow<string>('MEDIA_SIGNING_SECRET'),
+      secret: this.config.getOrThrow<string>("MEDIA_SIGNING_SECRET"),
       assetId,
       path,
-      ttlSec: this.config.getOrThrow<number>('MEDIA_URL_TTL_SEC'),
+      ttlSec: this.config.getOrThrow<number>("MEDIA_URL_TTL_SEC"),
     });
   }
 }

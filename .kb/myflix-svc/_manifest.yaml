@@ -92,3 +92,67 @@ sections:
   tokens:
     l2: 209
     l3: 751
+- id: hist.api
+  title: api — ticket history
+  summary: 'Tickets that touched api: 1 recorded.'
+  status: summarized
+  file: history
+  tokens:
+    l2: 93
+    l3: 86
+- id: hist.web
+  title: web — ticket history
+  summary: 'Tickets that touched web: 1 recorded.'
+  status: summarized
+  file: history
+  tokens:
+    l2: 93
+    l3: 86
+- id: hist.transcoder
+  title: transcoder — ticket history
+  summary: 'Tickets that touched transcoder: 1 recorded.'
+  status: summarized
+  file: history
+  tokens:
+    l2: 95
+    l3: 88
+- id: hist.nginx
+  title: nginx — ticket history
+  summary: 'Tickets that touched nginx: 1 recorded.'
+  status: summarized
+  file: history
+  tokens:
+    l2: 94
+    l3: 87
+- id: hist.postgres
+  title: postgres — ticket history
+  summary: 'Tickets that touched postgres: 1 recorded.'
+  status: summarized
+  file: history
+  tokens:
+    l2: 94
+    l3: 87
+- id: hist.redis
+  title: redis — ticket history
+  summary: 'Tickets that touched redis: 1 recorded.'
+  status: summarized
+  file: history
+  tokens:
+    l2: 93
+    l3: 86
+- id: hist.minio
+  title: minio — ticket history
+  summary: 'Tickets that touched minio: 1 recorded.'
+  status: summarized
+  file: history
+  tokens:
+    l2: 95
+    l3: 88
+- id: hist.minio-init
+  title: minio-init — ticket history
+  summary: 'Tickets that touched minio-init: 1 recorded.'
+  status: summarized
+  file: history
+  tokens:
+    l2: 97
+    l3: 90

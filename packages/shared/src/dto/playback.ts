@@ -1,4 +1,6 @@
-export interface PlaybackSessionRequest { assetId: string }
+export interface PlaybackSessionRequest {
+  assetId: string;
+}
 
 export interface PlaybackMarkers {
   introStartSec: number | null;

@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { PlaybackModule } from '../playback/playback.module';
-import { MaintenanceService } from './maintenance.service';
+import { Module } from "@nestjs/common";
+import { PlaybackModule } from "../playback/playback.module";
+import { MaintenanceService } from "./maintenance.service";
 
 @Module({
   imports: [PlaybackModule],

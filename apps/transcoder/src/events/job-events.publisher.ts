@@ -1,7 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type Redis from 'ioredis';
-import { JOB_EVENTS_CHANNEL } from '@myflix/shared';
-import { REDIS } from '../redis.module';
+import { Inject, Injectable } from "@nestjs/common";
+import type Redis from "ioredis";
+import { JOB_EVENTS_CHANNEL } from "@myflix/shared";
+import { REDIS } from "../redis.module";
 
 /** Worker -> Redis -> api SSE -> admin browser (HLD §5.3). */
 @Injectable()
@@ -20,22 +20,34 @@ export class JobEventsPublisher {
     speed: string;
   }): Promise<void> {
     const previous = this.lastPercent.get(payload.jobId);
-    if (previous !== undefined && Math.abs(payload.percent - previous) < 1) return;
+    if (previous !== undefined && Math.abs(payload.percent - previous) < 1)
+      return;
     this.lastPercent.set(payload.jobId, payload.percent);
-    await this.publish('job.progress', payload);
+    await this.publish("job.progress", payload);
   }
 
-  async completed(payload: { jobId: string; assetId: string; durationMinutes: number }): Promise<void> {
+  async completed(payload: {
+    jobId: string;
+    assetId: string;
+    durationMinutes: number;
+  }): Promise<void> {
     this.lastPercent.delete(payload.jobId);
-    await this.publish('job.completed', { ...payload, status: 'SUCCEEDED' });
+    await this.publish("job.completed", { ...payload, status: "SUCCEEDED" });
   }
 
-  async failed(payload: { jobId: string; assetId: string; errorMessage: string }): Promise<void> {
+  async failed(payload: {
+    jobId: string;
+    assetId: string;
+    errorMessage: string;
+  }): Promise<void> {
     this.lastPercent.delete(payload.jobId);
-    await this.publish('job.failed', payload);
+    await this.publish("job.failed", payload);
   }
 
   private publish(event: string, data: unknown): Promise<number> {
-    return this.redis.publish(JOB_EVENTS_CHANNEL, JSON.stringify({ event, data }));
+    return this.redis.publish(
+      JOB_EVENTS_CHANNEL,
+      JSON.stringify({ event, data }),
+    );
   }
 }

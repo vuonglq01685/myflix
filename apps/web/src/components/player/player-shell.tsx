@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import type { PlaybackSessionResponse } from '@myflix/shared';
-import { apiFetch } from '@/lib/api-client';
-import { useHls } from './use-hls';
+import { useEffect, useState } from "react";
+import type { PlaybackSessionResponse } from "@myflix/shared";
+import { apiFetch } from "@/lib/api-client";
+import { useHls } from "./use-hls";
 
 export function PlayerShell({ assetId }: { assetId: string }) {
   const [session, setSession] = useState<PlaybackSessionResponse | null>(null);
   const { videoRef, error } = useHls(session?.masterUrl ?? null);
 
   useEffect(() => {
-    void apiFetch<PlaybackSessionResponse>('/playback/session', {
-      method: 'POST',
+    void apiFetch<PlaybackSessionResponse>("/playback/session", {
+      method: "POST",
       body: JSON.stringify({ assetId }),
     }).then(setSession);
   }, [assetId]);
@@ -27,7 +27,13 @@ export function PlayerShell({ assetId }: { assetId: string }) {
 
   return (
     <div className="fixed inset-0 bg-black">
-      <video ref={videoRef} className="size-full" controls autoPlay playsInline />
+      <video
+        ref={videoRef}
+        className="size-full"
+        controls
+        autoPlay
+        playsInline
+      />
       {error ? (
         <p role="alert" className="absolute inset-x-0 bottom-8 text-center">
           Không phát được: {error}

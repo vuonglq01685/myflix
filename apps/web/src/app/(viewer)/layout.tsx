@@ -1,4 +1,4 @@
-import { SiteHeader } from '@/components/layout/site-header';
+import { SiteHeader } from "@/components/layout/site-header";
 
 /**
  * Viewer shell. `modal` is a parallel route slot: the detail view renders on

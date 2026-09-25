@@ -1,23 +1,33 @@
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
-import { QUEUE_CLEANUP } from '@myflix/shared';
-import { PrismaService } from '../prisma/prisma.service';
-import { ProgressService } from '../playback/progress.service';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import type { Queue } from "bullmq";
+import { QUEUE_CLEANUP } from "@myflix/shared";
+import { PrismaService } from "../prisma/prisma.service";
+import { ProgressService } from "../playback/progress.service";
 
 export const PROGRESS_FLUSH_MS = 60_000;
 export const PARTITION_CHECK_MS = 6 * 60 * 60_000;
 export const CLEANUP_DRAIN_MS = 5 * 60_000;
 
 /** Name and bounds of the monthly playback_events partition holding `date`. */
-export function partitionFor(date: Date): { name: string; from: string; to: string } {
+export function partitionFor(date: Date): {
+  name: string;
+  from: string;
+  to: string;
+} {
   const y = date.getUTCFullYear();
   const m = date.getUTCMonth();
   const iso = (year: number, month: number) =>
-    `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    `${year}-${String(month + 1).padStart(2, "0")}-01`;
   const next = m === 11 ? [y + 1, 0] : [y, m + 1];
   return {
-    name: `playback_events_${y}_${String(m + 1).padStart(2, '0')}`,
+    name: `playback_events_${y}_${String(m + 1).padStart(2, "0")}`,
     from: iso(y, m),
     to: iso(next[0]!, next[1]!),
   };
@@ -49,14 +59,22 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     await this.ensurePartitions();
     await this.cleanup.add(
-      'drain',
+      "drain",
       {},
-      { repeat: { every: CLEANUP_DRAIN_MS }, jobId: 'deletion-queue-drain' },
+      { repeat: { every: CLEANUP_DRAIN_MS }, jobId: "deletion-queue-drain" },
     );
 
     this.timers = [
-      setInterval(() => void this.safely('progress flush', () => this.progress.flushAll()), PROGRESS_FLUSH_MS),
-      setInterval(() => void this.safely('partition check', () => this.ensurePartitions()), PARTITION_CHECK_MS),
+      setInterval(
+        () =>
+          void this.safely("progress flush", () => this.progress.flushAll()),
+        PROGRESS_FLUSH_MS,
+      ),
+      setInterval(
+        () =>
+          void this.safely("partition check", () => this.ensurePartitions()),
+        PARTITION_CHECK_MS,
+      ),
     ];
     for (const t of this.timers) t.unref();
   }
@@ -64,12 +82,14 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
   async onModuleDestroy(): Promise<void> {
     for (const t of this.timers) clearInterval(t);
     // Last chance to land buffered positions before the process goes away.
-    await this.safely('final progress flush', () => this.progress.flushAll());
+    await this.safely("final progress flush", () => this.progress.flushAll());
   }
 
   /** Current and next month. Idempotent: IF NOT EXISTS. */
   async ensurePartitions(now = new Date()): Promise<void> {
-    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const nextMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+    );
     for (const p of [partitionFor(now), partitionFor(nextMonth)]) {
       // Identifiers are built from integers only, so interpolation is safe.
       await this.prisma.$executeRawUnsafe(
@@ -79,7 +99,10 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async safely(label: string, fn: () => Promise<unknown>): Promise<void> {
+  private async safely(
+    label: string,
+    fn: () => Promise<unknown>,
+  ): Promise<void> {
     try {
       await fn();
     } catch (error) {

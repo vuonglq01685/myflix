@@ -25,7 +25,7 @@ export function gopForFrameRate(
 
 /** ffprobe reports rates as "24000/1001". */
 export function parseFrameRate(raw: string): number {
-  const [num, den] = raw.split('/');
+  const [num, den] = raw.split("/");
   const n = Number(num);
   const d = den === undefined ? 1 : Number(den);
   if (!Number.isFinite(n) || !Number.isFinite(d) || d === 0) {
@@ -35,10 +35,14 @@ export function parseFrameRate(raw: string): number {
 }
 
 export const KEYFRAME_ARGS = (gop: number): string[] => [
-  '-g', String(gop),
-  '-keyint_min', String(gop),
-  '-sc_threshold', '0',
+  "-g",
+  String(gop),
+  "-keyint_min",
+  String(gop),
+  "-sc_threshold",
+  "0",
   // NVENC-specific: without this it may emit plain I-frames, which a player
   // cannot start decoding from — the segment is silently unusable.
-  '-forced-idr', '1',
+  "-forced-idr",
+  "1",
 ];

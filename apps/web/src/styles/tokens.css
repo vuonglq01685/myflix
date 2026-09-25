@@ -19,7 +19,7 @@
 
   /* Inter, not Netflix Sans — brand assets are off limits (C-4, NFR-64).
      Weights 500-700 with slightly negative tracking land closest. */
-  --font-sans: Inter, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: Inter, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   --text-billboard: clamp(2rem, 5vw, 4rem);
   --text-row-title: 1.05rem;

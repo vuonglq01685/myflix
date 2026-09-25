@@ -1,20 +1,20 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { UnrecoverableError, type Job } from 'bullmq';
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { UnrecoverableError, type Job } from "bullmq";
 import {
   AssetStatus,
   JobStatus,
   QUEUE_TRANSCODE,
   computePercent,
   type TranscodeJobData,
-} from '@myflix/shared';
-import { keys } from '@myflix/storage';
-import { PrismaService } from '../prisma/prisma.service';
-import { StorageService } from '../storage/storage.service';
-import { FfmpegService, FfmpegError } from '../ffmpeg/ffmpeg.service';
-import { KeyframeVerifier } from '../ffmpeg/keyframe-verifier';
-import { JobEventsPublisher } from '../events/job-events.publisher';
+} from "@myflix/shared";
+import { keys } from "@myflix/storage";
+import { PrismaService } from "../prisma/prisma.service";
+import { StorageService } from "../storage/storage.service";
+import { FfmpegService, FfmpegError } from "../ffmpeg/ffmpeg.service";
+import { KeyframeVerifier } from "../ffmpeg/keyframe-verifier";
+import { JobEventsPublisher } from "../events/job-events.publisher";
 
 /**
  * The asset state machine (HLD §5.2):
@@ -27,7 +27,9 @@ import { JobEventsPublisher } from '../events/job-events.publisher';
  *
  * Concurrency is 1 — see ADR-005.
  */
-@Processor(QUEUE_TRANSCODE, { concurrency: Number(process.env.TRANSCODE_CONCURRENCY ?? 1) })
+@Processor(QUEUE_TRANSCODE, {
+  concurrency: Number(process.env.TRANSCODE_CONCURRENCY ?? 1),
+})
 export class TranscodeProcessor extends WorkerHost {
   private readonly logger = new Logger(TranscodeProcessor.name);
 
@@ -45,7 +47,7 @@ export class TranscodeProcessor extends WorkerHost {
   async process(job: Job<TranscodeJobData>): Promise<void> {
     const { assetId, jobId, correlationId } = job.data;
     const startedAt = Date.now();
-    this.logger.log({ correlationId, jobId, assetId }, 'job started');
+    this.logger.log({ correlationId, jobId, assetId }, "job started");
 
     try {
       await this.mark(jobId, assetId, JobStatus.RUNNING, AssetStatus.PROBING);
@@ -64,7 +66,7 @@ export class TranscodeProcessor extends WorkerHost {
       //     rejects the update otherwise) and ready_at
       void keys;
       void computePercent;
-      throw new Error('TranscodeProcessor.process not implemented');
+      throw new Error("TranscodeProcessor.process not implemented");
     } catch (error) {
       await this.fail(jobId, assetId, error);
       // A permanent failure must not consume the two configured retries.
@@ -76,11 +78,13 @@ export class TranscodeProcessor extends WorkerHost {
       // Staging debris is removed whether the job succeeded or not (R-5).
       await this.storage
         .deletePrefix(this.storage.buckets.staging, `${jobId}/`)
-        .catch((error: unknown) => this.logger.warn({ err: error, jobId }, 'staging cleanup failed'));
+        .catch((error: unknown) =>
+          this.logger.warn({ err: error, jobId }, "staging cleanup failed"),
+        );
 
       this.logger.log(
         { correlationId, jobId, assetId, elapsedMs: Date.now() - startedAt },
-        'job finished',
+        "job finished",
       );
     }
   }
@@ -96,11 +100,18 @@ export class TranscodeProcessor extends WorkerHost {
         where: { id: jobId },
         data: { status, stage: assetStatus, startedAt: new Date() },
       }),
-      this.prisma.mediaAsset.update({ where: { id: assetId }, data: { status: assetStatus } }),
+      this.prisma.mediaAsset.update({
+        where: { id: assetId },
+        data: { status: assetStatus },
+      }),
     ]);
   }
 
-  private async fail(jobId: string, assetId: string, error: unknown): Promise<void> {
+  private async fail(
+    jobId: string,
+    assetId: string,
+    error: unknown,
+  ): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     const log = error instanceof FfmpegError ? error.log : null;
 

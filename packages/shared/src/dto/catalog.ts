@@ -1,6 +1,6 @@
-import type { AssetStatus, TitleType } from '../enums';
+import type { AssetStatus, TitleType } from "../enums";
 
-export type RowType = 'CONTINUE' | 'MY_LIST' | 'RECENT' | 'GENRE' | 'REWATCH';
+export type RowType = "CONTINUE" | "MY_LIST" | "RECENT" | "GENRE" | "REWATCH";
 
 export interface Billboard {
   titleId: string;
@@ -36,8 +36,15 @@ export interface CatalogRowsResponse {
   rows: CatalogRow[];
 }
 
-export interface GenreRef { slug: string; name: string }
-export interface CastMember { name: string; character?: string; order?: number }
+export interface GenreRef {
+  slug: string;
+  name: string;
+}
+export interface CastMember {
+  name: string;
+  character?: string;
+  order?: number;
+}
 
 export interface EpisodeDetail {
   id: string;

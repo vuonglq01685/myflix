@@ -5,8 +5,8 @@ export interface EpisodeRef {
 }
 
 const PATTERNS: readonly RegExp[] = [
-  /\bs(\d{1,2})[\s._-]*e(\d{1,3})\b/i,          // S01E03, s01.e03, S1-E3
-  /\b(\d{1,2})x(\d{1,3})\b/i,                    // 1x03
+  /\bs(\d{1,2})[\s._-]*e(\d{1,3})\b/i, // S01E03, s01.e03, S1-E3
+  /\b(\d{1,2})x(\d{1,3})\b/i, // 1x03
   /\bseason[\s._-]*(\d{1,2})[\s._-]*episode[\s._-]*(\d{1,3})\b/i,
 ];
 

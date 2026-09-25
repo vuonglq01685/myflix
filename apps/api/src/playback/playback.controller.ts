@@ -1,12 +1,23 @@
-import { Body, Controller, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
-import type { PlaybackSessionRequest, ProgressRequest, QoeEventRequest } from '@myflix/shared';
-import { CurrentProfile } from '../common/decorators';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { ProfileGuard } from '../common/guards/profile.guard';
-import { PlaybackService } from './playback.service';
-import { ProgressService } from './progress.service';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Param,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
+import type {
+  PlaybackSessionRequest,
+  ProgressRequest,
+  QoeEventRequest,
+} from "@myflix/shared";
+import { CurrentProfile } from "../common/decorators";
+import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { ProfileGuard } from "../common/guards/profile.guard";
+import { PlaybackService } from "./playback.service";
+import { ProgressService } from "./progress.service";
 
-@Controller('playback')
+@Controller("playback")
 @UseGuards(JwtAuthGuard, ProfileGuard)
 export class PlaybackController {
   constructor(
@@ -14,26 +25,35 @@ export class PlaybackController {
     private readonly progress: ProgressService,
   ) {}
 
-  @Post('session')
+  @Post("session")
   @HttpCode(200)
-  session(@CurrentProfile() profileId: string, @Body() dto: PlaybackSessionRequest) {
+  session(
+    @CurrentProfile() profileId: string,
+    @Body() dto: PlaybackSessionRequest,
+  ) {
     return this.playback.createSession(profileId, dto.assetId);
   }
 
-  @Post('session/:sessionId/renew')
+  @Post("session/:sessionId/renew")
   @HttpCode(200)
-  renew(@CurrentProfile() profileId: string, @Param('sessionId') sessionId: string) {
+  renew(
+    @CurrentProfile() profileId: string,
+    @Param("sessionId") sessionId: string,
+  ) {
     return this.playback.renewSession(profileId, sessionId);
   }
 
   /** Hot path: Redis only, empty body, no Postgres (ADR-012). */
-  @Post('progress')
+  @Post("progress")
   @HttpCode(204)
-  async recordProgress(@CurrentProfile() profileId: string, @Body() dto: ProgressRequest) {
+  async recordProgress(
+    @CurrentProfile() profileId: string,
+    @Body() dto: ProgressRequest,
+  ) {
     await this.progress.record({ profileId, ...dto });
   }
 
-  @Post('events')
+  @Post("events")
   @HttpCode(204)
   qoe(@CurrentProfile() profileId: string, @Body() dto: QoeEventRequest) {
     return this.playback.recordQoe(profileId, dto);

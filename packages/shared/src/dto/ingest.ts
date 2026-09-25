@@ -1,4 +1,4 @@
-import type { AssetKind } from '../enums';
+import type { AssetKind } from "../enums";
 
 export interface IngestInitRequest {
   fileName: string;
@@ -9,7 +9,10 @@ export interface IngestInitRequest {
   episodeId?: string;
 }
 
-export interface PartUrl { partNumber: number; url: string }
+export interface PartUrl {
+  partNumber: number;
+  url: string;
+}
 
 export interface IngestInitResponse {
   assetId: string;
@@ -20,7 +23,10 @@ export interface IngestInitResponse {
   partUrls: PartUrl[];
 }
 
-export interface CompletedPart { partNumber: number; eTag: string }
+export interface CompletedPart {
+  partNumber: number;
+  eTag: string;
+}
 
 export interface IngestCompleteRequest {
   assetId: string;
@@ -31,7 +37,7 @@ export interface IngestCompleteRequest {
 export interface IngestCompleteResponse {
   assetId: string;
   jobId: string;
-  status: 'QUEUED';
+  status: "QUEUED";
   queuePosition: number;
 }
 

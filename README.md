@@ -28,6 +28,55 @@ myflix/
 └── docker-compose.yml
 ```
 
+## Phase 0 setup
+
+Minimum dependency versions (verified against the running host/containers at acceptance time, not just declared here):
+
+| Dependency               | Minimum                                                                                                                                                                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NVIDIA Driver            | Linux 550.54.14 / Windows 551.76                                                                                                                                                                                  |
+| NVIDIA Container Toolkit | 1.14.0                                                                                                                                                                                                            |
+| Docker Engine            | 24.x                                                                                                                                                                                                              |
+| FFmpeg                   | 6.1+ (built with `--enable-nvenc --enable-cuda-nvcc`, see `infra/ffmpeg/Dockerfile`)                                                                                                                              |
+| Node.js                  | 20 LTS                                                                                                                                                                                                            |
+| PostgreSQL               | 16                                                                                                                                                                                                                |
+| Redis                    | 7                                                                                                                                                                                                                 |
+| MinIO                    | `RELEASE.2025-09-07T16-13-09Z` (server) and `RELEASE.2025-08-13T08-35-41Z` (`mc`), both pinned in `docker-compose.yml`. Both images come from quay.io, not Docker Hub — MinIO removed its Docker Hub repositories |
+
+**Clean-machine bring-up** (Q16: no image, no named volume of this project, no `.env` — the repo itself is already at its current state):
+
+1. `cp .env.example .env`, then replace every `change-me-*` placeholder.
+   **Two pairs share one literal each and must be edited to the same new value within the pair:** `POSTGRES_PASSWORD` and the password embedded in `DATABASE_URL` (`.env.example:8,10`), and `MINIO_ROOT_PASSWORD` and `S3_SECRET_KEY` (`.env.example:19,23`). `docker-compose.yml` passes `DATABASE_URL` straight through, with no interpolation from `POSTGRES_PASSWORD`, so nothing reconciles them for you. Giving the members of a pair different values breaks authentication, but the two fail very differently. **The first fails loudly:** `postgres` and `api`/`transcoder` disagree, `api`'s `/health` returns 503, so `api` never turns healthy, `web` and `nginx` never start, and `docker compose up -d --wait` times out. **The second fails silently:** `minio` and `minio-init` are given only `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` — neither merges the `x-app-env` anchor that carries `S3_SECRET_KEY`, and `scripts/minio-init.sh` aliases with the same root credentials the server was given — so bring-up succeeds, no healthcheck touches S3, and **all five DoD items go green**. The break surfaces only at runtime, when `api`/`transcoder` sign S3 requests as `S3_ACCESS_KEY` with the wrong secret and every upload and transcode output fails. A green verification run does not rule this out.
+2. `docker compose up -d --wait --wait-timeout 180` — builds the FFmpeg image (source build, the single largest consumer of the 30-minute budget below) then starts all 8 services — the 7 long-running ones plus the one-shot `minio-init`, which creates the buckets and exits. `make up` is the day-to-day shortcut, but it omits `--wait`, so it does not enforce the 180-second bound below.
+3. `bash scripts/verify-phase0.sh` — expect PASS on all 5 items.
+   **On the CPU-fallback branch, set the encoder on the script's own command line:** `TRANSCODE_ENCODER=libx264 bash scripts/verify-phase0.sh`. That WAIVES DoD-0-2 and runs DoD-0-3 on `libx264`. The `TRANSCODE_ENCODER` in `infra/compose/docker-compose.cpu.yml` is scoped to the `transcoder` container and is invisible to the script, which never reads `.env` — so on a CPU-only host without it, DoD-0-2 and DoD-0-3 both **FAIL**. `make verify` is the same bare invocation and does not set it for you either.
+   **`--fresh` runs a bare `docker compose`, with no `-f` flags of its own:** on the CPU-fallback path, `export COMPOSE_FILE=docker-compose.yml:infra/compose/docker-compose.cpu.yml` before running `MYFLIX_ALLOW_WIPE=1 bash scripts/verify-phase0.sh --fresh`, or it brings the stack up without the CPU override. `--fresh` runs `docker compose down -v`, which deletes every named volume in the resolved project — it prints the project name and volume list first, then refuses with exit 2 unless `MYFLIX_ALLOW_WIPE=1` is set in the environment.
+   **A WAIVED DoD-0-2 is not a pass.** It increments neither counter, so the run prints `passed 4, failed 0` and exits 0: a green exit does not prove NVENC. On the NVENC path, Phase 1 waits for DoD-0-2 to actually pass. On the CPU-fallback branch (Q11), Phase 1 may start once the script exits 0 with only DoD-0-2 WAIVED.
+
+**Time budget (NFR-47):** the whole clean-machine flow, image build included, must finish under **30 minutes**; `docker compose up -d --wait` alone must finish under its own 180-second `--wait-timeout`.
+
+**`docker-compose.yml` ownership (AC27, Q7):** this file is owned by the Project Owner. Any change to it, in any mission, updates `scripts/verify-phase0.sh` in the same commit and re-runs it; a green run is a merge condition.
+
+**Upgrading an existing stack:** skip this section entirely on a fresh machine — it only applies if `docker volume ls` already shows this project's volumes from before this branch. This branch renames the 3 data volumes: `pgdata`→`myflix-postgres-data`, `redisdata`→`myflix-redis-data`, `miniodata`→`myflix-minio-data`. Docker identifies a volume by name only, and Compose resolves each name as `<project>_<name>`. On a stack started before this branch (project `myflix` either way), the old volumes are `myflix_pgdata`, `myflix_redisdata`, `myflix_miniodata`; after this branch (`name: myflix` in `docker-compose.yml`), the new ones are `myflix_myflix-postgres-data`, `myflix_myflix-redis-data`, `myflix_myflix-minio-data`. Confirm the real names on your own host before running anything: `docker compose config --format json | jq '.volumes'` and `docker volume ls`. Renaming does not migrate data — Compose creates the new volume empty on the next `up`, and the old one is orphaned, not deleted. **Run the copy below before the first `docker compose up` on this branch** — if the stack has already come up on the new, empty volumes, the copy overwrites anything written there since.
+
+1. `docker compose down` (no `-v`) — stops the stack, keeps every existing volume intact.
+2. Copy each old volume's contents into its new one while nothing is running. `docker run -v <name>:/to` creates `<name>` automatically if it does not exist yet, so no separate `docker volume create` step is needed. Each line checks the source volume exists first, so a wrong or missing name stops the command instead of silently copying nothing into a freshly created empty volume:
+   ```bash
+   docker volume inspect myflix_pgdata >/dev/null && docker run --rm -v myflix_pgdata:/from -v myflix_myflix-postgres-data:/to alpine:3.20 cp -a /from/. /to/
+   docker volume inspect myflix_redisdata >/dev/null && docker run --rm -v myflix_redisdata:/from -v myflix_myflix-redis-data:/to alpine:3.20 cp -a /from/. /to/
+   docker volume inspect myflix_miniodata >/dev/null && docker run --rm -v myflix_miniodata:/from -v myflix_myflix-minio-data:/to alpine:3.20 cp -a /from/. /to/
+   ```
+3. `docker compose up -d --wait --wait-timeout 180` — brings the stack back up on the new volumes with the copied data.
+4. Once the new stack is verified and you are confident you will not roll back, delete the old volumes to reclaim disk: `docker volume rm myflix_pgdata myflix_redisdata myflix_miniodata`.
+
+**Rolling back:** if you haven't deleted the old volumes yet (step 4), reverting to the pre-upgrade code reattaches them — and they hold only pre-upgrade data. Anything written after the upgrade must be copied back the same way, in reverse, before rolling back:
+
+```bash
+docker run --rm -v myflix_myflix-postgres-data:/from -v myflix_pgdata:/to alpine:3.20 cp -a /from/. /to/
+docker run --rm -v myflix_myflix-redis-data:/from -v myflix_redisdata:/to alpine:3.20 cp -a /from/. /to/
+docker run --rm -v myflix_myflix-minio-data:/from -v myflix_miniodata:/to alpine:3.20 cp -a /from/. /to/
+```
+
 ## Bring-up
 
 ```bash
@@ -42,11 +91,13 @@ No NVIDIA GPU on this machine (a Mac, or CI):
 make up-cpu              # libx264 fallback — NFR-15/NFR-16 will not be met
 ```
 
-| URL | What |
-|---|---|
-| http://localhost | app (everything goes through nginx) |
+`make up-cpu` drops the GPU device reservation via `infra/compose/docker-compose.cpu.yml`'s `devices: !reset []` override (`deploy.resources.reservations` merges to `{}`) — confirm with `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml config --format json | jq '.services.transcoder.deploy.resources.reservations'` — so `transcoder` starts without an NVIDIA Container Toolkit on this path.
+
+| URL                         | What                                      |
+| --------------------------- | ----------------------------------------- |
+| http://localhost            | app (everything goes through nginx)       |
 | http://localhost/api/health | health check, 503 if a dependency is down |
-| http://localhost:9001 | MinIO console |
+| http://localhost:9001       | MinIO console                             |
 
 ## The three hard constraints
 
@@ -111,7 +162,9 @@ are verified to produce an empty diff. Use `migrate deploy`, never
 
 ## Next step
 
-Phase 0 (roadmap §3, 3 days): get `make verify` fully green. Do not start
-Phase 1 until DoD-0-2 passes — if NVENC is unavailable in Docker, the
-contingency is `infra/ffmpeg/cpu-fallback.Dockerfile` with a 720p/480p ladder
-and reset expectations on processing time.
+Phase 0 (roadmap §3, 3 days): get `make verify` fully green. On the NVENC
+path, Phase 1 waits for DoD-0-2 to pass. On the CPU-fallback branch (Q11),
+Phase 1 may start once the script exits 0 with only DoD-0-2 WAIVED. If NVENC
+is unavailable in Docker, the contingency is
+`infra/ffmpeg/cpu-fallback.Dockerfile` with a 720p/480p ladder and reset
+expectations on processing time.

@@ -21,8 +21,12 @@
     "test:e2e": "pnpm --filter @myflix/api test:e2e && pnpm --filter @myflix/e2e test:e2e"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.10.0",
+    "eslint": "^10.11.0",
+    "prettier": "^3.9.8",
     "typescript": "^5.7.0",
-    "@types/node": "^22.10.0"
+    "typescript-eslint": "^8.70.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

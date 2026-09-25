@@ -10,4 +10,4 @@ services:
     deploy:
       resources:
         reservations:
-          devices: []
+          devices: !reset []

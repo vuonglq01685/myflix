@@ -1,13 +1,13 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
-import type { RowItem } from '@myflix/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotImplementedException } from "@nestjs/common";
+import type { RowItem } from "@myflix/shared";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class MyListService {
   constructor(private readonly prisma: PrismaService) {}
 
   list(_profileId: string): Promise<RowItem[]> {
-    throw new NotImplementedException('MyListService.list');
+    throw new NotImplementedException("MyListService.list");
   }
 
   /** Idempotent by contract — the composite PK makes upsert the natural fit. */

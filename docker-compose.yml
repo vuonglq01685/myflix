@@ -28,9 +28,11 @@ services:
       MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET}
       # Keep envsubst away from nginx's own $variables.
       NGINX_ENVSUBST_FILTER: "MEDIA_SIGNING_SECRET"
+    tmpfs:
+      - /etc/nginx/conf.d
     volumes:
       - ./infra/nginx/templates:/etc/nginx/templates:ro
-      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/conf.d/00-limits.conf:/etc/nginx/conf.d/00-limits.conf:ro
       - ./infra/nginx/snippets:/etc/nginx/snippets:ro
       - nginx-cache:/var/cache/nginx
     depends_on:
@@ -38,7 +40,7 @@ services:
       web: { condition: service_started }
       minio: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/nginx-health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -51,9 +53,25 @@ services:
       <<: *app-env
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
-    expose: ["3000"]
+    ports: ["127.0.0.1:3000:3000"]
     depends_on:
       api: { condition: service_healthy }
+    # redirect:'manual' is load-bearing: it stops at the first response instead of
+    # following / onward. Cookie-less it lands on /login; with refresh_token+pid a
+    # followed chain reaches /browse, which SSRs a catalog fetch that throws with no
+    # error.tsx to catch it, 500s, and would pin web unhealthy. Don't rely on which.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/', {redirect:'manual'}).then(r=>process.exit(r.status<400?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   api:
     build:
@@ -72,13 +90,20 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       UPLOAD_PART_SIZE_BYTES: ${UPLOAD_PART_SIZE_BYTES:-16777216}
       UPLOAD_URL_TTL_SEC: ${UPLOAD_URL_TTL_SEC:-3600}
-    expose: ["4000"]
+    ports: ["127.0.0.1:4000:4000"]
     depends_on:
       postgres: { condition: service_healthy }
-      redis:    { condition: service_healthy }
-      minio:    { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -104,8 +129,14 @@ services:
       - transcode-scratch:/scratch
     depends_on:
       postgres: { condition: service_healthy }
-      redis:    { condition: service_healthy }
-      minio:    { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "redis", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     deploy:
       resources:
         reservations:
@@ -121,7 +152,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - myflix-postgres-data:/var/lib/postgresql/data
       - ./infra/postgres:/docker-entrypoint-initdb.d:ro
     expose: ["5432"]
     healthcheck:
@@ -133,9 +164,10 @@ services:
   redis:
     image: redis:7-alpine
     # AOF on: BullMQ jobs and buffered watch progress must survive a restart.
-    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    command:
+      ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
-      - redisdata:/data
+      - myflix-redis-data:/data
     expose: ["6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -143,17 +175,18 @@ services:
       timeout: 3s
       retries: 20
 
+  # quay.io, not Docker Hub, for this and minio-init: MinIO removed both Docker Hub repos.
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "9001:9001"   # console only; the S3 API stays behind nginx
+      - "127.0.0.1:9001:9001" # console only; the S3 API stays behind nginx
     expose: ["9000"]
     volumes:
-      - miniodata:/data
+      - myflix-minio-data:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -162,7 +195,7 @@ services:
 
   # One-shot: creates the four buckets, then exits.
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
       minio: { condition: service_healthy }
     environment:
@@ -174,8 +207,8 @@ services:
     restart: "no"
 
 volumes:
-  pgdata:
-  redisdata:
-  miniodata:
+  myflix-postgres-data:
+  myflix-redis-data:
+  myflix-minio-data:
   nginx-cache:
   transcode-scratch:

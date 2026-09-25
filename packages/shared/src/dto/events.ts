@@ -10,7 +10,7 @@ export interface JobProgressEvent {
 export interface JobCompletedEvent {
   jobId: string;
   assetId: string;
-  status: 'SUCCEEDED';
+  status: "SUCCEEDED";
   durationMinutes: number;
 }
 
@@ -21,10 +21,10 @@ export interface JobFailedEvent {
 }
 
 export type JobEvent =
-  | { event: 'job.progress'; data: JobProgressEvent }
-  | { event: 'job.completed'; data: JobCompletedEvent }
-  | { event: 'job.failed'; data: JobFailedEvent }
-  | { event: 'heartbeat'; data: Record<string, never> };
+  | { event: "job.progress"; data: JobProgressEvent }
+  | { event: "job.completed"; data: JobCompletedEvent }
+  | { event: "job.failed"; data: JobFailedEvent }
+  | { event: "heartbeat"; data: Record<string, never> };
 
 /** Proxies drop idle SSE connections; keep them warm. */
 export const SSE_HEARTBEAT_MS = 30_000;

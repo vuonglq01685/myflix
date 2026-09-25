@@ -1,0 +1,10 @@
+.kb/
+.cursor/
+.gitnexus/
+pnpm-lock.yaml
+docs/impl/*-review/
+docs/impl/*-context.md
+docs/conventions/*
+!docs/conventions/*.local.md
+.github/prompts/
+.github/instructions/

@@ -1,9 +1,9 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
-import { QUEUE_CLEANUP } from '@myflix/shared';
-import { PrismaService } from '../prisma/prisma.service';
-import { StorageService } from '../storage/storage.service';
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Logger } from "@nestjs/common";
+import type { Job } from "bullmq";
+import { QUEUE_CLEANUP } from "@myflix/shared";
+import { PrismaService } from "../prisma/prisma.service";
+import { StorageService } from "../storage/storage.service";
 
 /**
  * Drains deletion_queue (doc 04 §6). Rows are written before the Postgres
@@ -25,7 +25,7 @@ export class CleanupProcessor extends WorkerHost {
   async process(_job: Job): Promise<{ deleted: number }> {
     const pending = await this.prisma.deletionQueue.findMany({
       where: { deletedAt: null },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       take: CleanupProcessor.BATCH,
     });
 
@@ -51,7 +51,10 @@ export class CleanupProcessor extends WorkerHost {
             lastError: error instanceof Error ? error.message : String(error),
           },
         });
-        this.logger.warn({ err: error, key: row.objectKey }, 'object delete failed');
+        this.logger.warn(
+          { err: error, key: row.objectKey },
+          "object delete failed",
+        );
       }
     }
     return { deleted };

@@ -1,7 +1,7 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
-import { QUEUE_SUBTITLE } from '@myflix/shared';
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Logger } from "@nestjs/common";
+import type { Job } from "bullmq";
+import { QUEUE_SUBTITLE } from "@myflix/shared";
 
 export interface SubtitleJobData {
   assetId: string;
@@ -29,6 +29,6 @@ export class SubtitleProcessor extends WorkerHost {
     // then chardet at 0.7 confidence, then the windows-1252/1258 correction.
     // Refuse rather than guess, and warn when a `vi` track ends up with zero
     // characters in U+1EA0-U+1EF9.
-    throw new Error('SubtitleProcessor.process not implemented');
+    throw new Error("SubtitleProcessor.process not implemented");
   }
 }
