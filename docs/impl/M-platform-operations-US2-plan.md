@@ -325,15 +325,17 @@ Depends on: none
 
 **Steps**
 
-- [ ] Failing test: viết `apps/transcoder/src/health/gpu-probe.controller.spec.ts` [NEW] — dựng `GpuProbeController` với `ConfigService`/`GpuProbeService` mock. Case 1: `config.get` trả `"libx264"` (không `_nvenc`) → assert `check()` trả `{ gpu: "not_required" }` bất kể `probe.read()`. Case 2: `config.get` trả `"h264_nvenc"`, `probe.read()` trả `true` → assert `{ gpu: "ok" }`. Case 3: `config.get` trả `"h264_nvenc"`, `probe.read()` trả `false` → assert `check()` `throw ServiceUnavailableException` với response body `{ gpu: "down" }`. Chạy `pnpm --filter @myflix/transcoder test -- gpu-probe`. Expect: FAIL — module `./gpu-probe.controller` chưa tồn tại (`TS2307`/Jest "Cannot find module").
-- [ ] Tạo `gpu-probe.service.ts`, `gpu-probe.controller.ts`, `health.module.ts` đúng nội dung ở Interfaces.
-- [ ] Thêm `HealthModule` vào `apps/transcoder/src/app.module.ts`'s `imports` (import thêm, không đổi gì khác trong file này ở task này).
-- [ ] Sửa `apps/transcoder/src/main.ts`: đổi bootstrap sang `NestFactory.create` + `app.listen(GPU_PROBE_PORT, "0.0.0.0")` như Interfaces; cập nhật comment đầu file (không còn "Headless worker: no HTTP listener").
-- [ ] Thêm `@nestjs/platform-express` (`^11.0.0`) vào `dependencies` của `apps/transcoder/package.json`; chạy `pnpm install` ở root, xác nhận `pnpm-lock.yaml` cập nhật.
-- [ ] Chạy lại `pnpm --filter @myflix/transcoder test -- gpu-probe`. Expect: PASS — cả 3 case xanh.
-- [ ] Self-review checkpoint: xác nhận không import `express`/`Response` type nào trong `gpu-probe.controller.ts` (NS2); `main.ts` không publish port ra host (không có `ports:` — đó là việc của Task 5).
-- [ ] Chạy `pnpm --filter @myflix/transcoder test` (scoped), `pnpm --filter @myflix/transcoder build` (xác nhận `nest build` xanh với `@nestjs/platform-express` mới), và `cmd.lint`. Paste output vào PR.
-- [ ] Commit: `feat(transcoder): add GPU probe HTTP listener on :4100 (D7)`.
+- [x] Failing test: viết `apps/transcoder/src/health/gpu-probe.controller.spec.ts` [NEW] — dựng `GpuProbeController` với `ConfigService`/`GpuProbeService` mock. Case 1: `config.get` trả `"libx264"` (không `_nvenc`) → assert `check()` trả `{ gpu: "not_required" }` bất kể `probe.read()`. Case 2: `config.get` trả `"h264_nvenc"`, `probe.read()` trả `true` → assert `{ gpu: "ok" }`. Case 3: `config.get` trả `"h264_nvenc"`, `probe.read()` trả `false` → assert `check()` `throw ServiceUnavailableException` với response body `{ gpu: "down" }`. Chạy `pnpm --filter @myflix/transcoder test -- gpu-probe`. Expect: FAIL — module `./gpu-probe.controller` chưa tồn tại (`TS2307`/Jest "Cannot find module").
+- [x] Tạo `gpu-probe.service.ts`, `gpu-probe.controller.ts`, `health.module.ts` đúng nội dung ở Interfaces.
+- [x] Thêm `HealthModule` vào `apps/transcoder/src/app.module.ts`'s `imports` (import thêm, không đổi gì khác trong file này ở task này).
+- [x] Sửa `apps/transcoder/src/main.ts`: đổi bootstrap sang `NestFactory.create` + `app.listen(GPU_PROBE_PORT, "0.0.0.0")` như Interfaces; cập nhật comment đầu file (không còn "Headless worker: no HTTP listener").
+- [x] Thêm `@nestjs/platform-express` (`^11.0.0`) vào `dependencies` của `apps/transcoder/package.json`; chạy `pnpm install` ở root, xác nhận `pnpm-lock.yaml` cập nhật.
+- [x] Chạy lại `pnpm --filter @myflix/transcoder test -- gpu-probe`. Expect: PASS — cả 3 case xanh.
+- [x] Self-review checkpoint: xác nhận không import `express`/`Response` type nào trong `gpu-probe.controller.ts` (NS2); `main.ts` không publish port ra host (không có `ports:` — đó là việc của Task 5).
+- [x] Chạy `pnpm --filter @myflix/transcoder test` (scoped), `pnpm --filter @myflix/transcoder build` (xác nhận `nest build` xanh với `@nestjs/platform-express` mới), và `cmd.lint`. Paste output vào PR.
+- [x] Commit: `feat(transcoder): add GPU probe HTTP listener on :4100 (D7)`.
+
+Review: ✅ r1 (S1/S2 → Task 11, Dev-approved)
 
 ## Task 5: AC2/AC3 — `docker-compose.yml`: transcoder expose 4100 + api healthcheck timeout/retries
 
@@ -590,12 +592,14 @@ Depends on: task 4
 
 **Steps**
 
-- [ ] Failing test: viết `gpu-probe.service.spec.ts` với 4 case: (1) `read()` là `false` trước mọi lần check; (2) sau `runCheck()` thành công → `read()` `true`; (3) sau `runCheck()` lỗi → `false`; (4) **S2** — khi lần `runCheck()` đầu còn treo (callback chưa gọi), gọi `runCheck()` lần hai → `execFile` mock chỉ được gọi **1** lần; sau khi resolve lần đầu, gọi lần ba → 2 lần. Thêm case (5): sau thành công, `Date.now` tiến `GPU_STALE_MS + 1` → `read()` `false`. Chạy `pnpm --filter @myflix/transcoder test -- gpu-probe.service`. Expect: FAIL — case (4) báo `execFile` được gọi 2 lần (chưa có guard); các case khác có thể pass.
-- [ ] Thêm `inFlight` vào `gpu-probe.service.ts` đúng như Interfaces.
-- [ ] Chạy lại `pnpm --filter @myflix/transcoder test -- gpu-probe.service`. Expect: PASS 5/5.
-- [ ] Self-review checkpoint: `lastCheckedAt` vẫn được set trong `finally` mọi nhánh; guard không đổi hành vi khi không có lệnh treo.
-- [ ] Chạy `pnpm --filter @myflix/transcoder test` (scoped), `pnpm --filter @myflix/transcoder build`, và `cmd.lint`. Paste output vào PR.
-- [ ] Commit: `fix(transcoder): guard GpuProbeService.runCheck against overlapping nvidia-smi runs (A3 S2)`.
+- [x] Failing test: viết `gpu-probe.service.spec.ts` với 4 case: (1) `read()` là `false` trước mọi lần check; (2) sau `runCheck()` thành công → `read()` `true`; (3) sau `runCheck()` lỗi → `false`; (4) **S2** — khi lần `runCheck()` đầu còn treo (callback chưa gọi), gọi `runCheck()` lần hai → `execFile` mock chỉ được gọi **1** lần; sau khi resolve lần đầu, gọi lần ba → 2 lần. Thêm case (5): sau thành công, `Date.now` tiến `GPU_STALE_MS + 1` → `read()` `false`. Chạy `pnpm --filter @myflix/transcoder test -- gpu-probe.service`. Expect: FAIL — case (4) báo `execFile` được gọi 2 lần (chưa có guard); các case khác có thể pass.
+- [x] Thêm `inFlight` vào `gpu-probe.service.ts` đúng như Interfaces.
+- [x] Chạy lại `pnpm --filter @myflix/transcoder test -- gpu-probe.service`. Expect: PASS 5/5.
+- [x] Self-review checkpoint: `lastCheckedAt` vẫn được set trong `finally` mọi nhánh; guard không đổi hành vi khi không có lệnh treo.
+- [x] Chạy `pnpm --filter @myflix/transcoder test` (scoped), `pnpm --filter @myflix/transcoder build`, và `cmd.lint`. Paste output vào PR.
+- [x] Commit: `fix(transcoder): guard GpuProbeService.runCheck against overlapping nvidia-smi runs (A3 S2)`.
+
+Review: ✅ r1
 
 ## Task 12: AC10 — `api` + `transcoder`: ioredis `error` listener qua Pino (Task 9 T14)
 
