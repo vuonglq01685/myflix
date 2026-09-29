@@ -34,4 +34,27 @@ describe("AllExceptionsFilter fallback (R5-N1)", () => {
       expect.objectContaining({ correlationId: generatedId }),
     );
   });
+
+  it("does not regenerate a correlation id when req.id is already set (S2)", () => {
+    const filter = new AllExceptionsFilter();
+    const req = { id: "preset-1", headers: {} };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      setHeader: jest.fn(),
+    };
+    const host = {
+      switchToHttp: () => ({
+        getRequest: () => req,
+        getResponse: () => res,
+      }),
+    } as unknown as ArgumentsHost;
+
+    filter.catch(new BadRequestException("invalid JSON"), host);
+
+    expect(res.setHeader).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ correlationId: "preset-1" }),
+    );
+  });
 });

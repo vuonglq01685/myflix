@@ -7,7 +7,7 @@ export function genReqId(req: IncomingMessage, res: ServerResponse): string {
   const raw = req.headers["x-correlation-id"];
   const candidate = Array.isArray(raw) ? raw[0] : raw;
   const id = resolveCorrelationId(candidate);
-  res.setHeader("X-Correlation-Id", id);
+  res.setHeader("X-Correlation-Id", id); // mission D9
   return id;
 }
 
