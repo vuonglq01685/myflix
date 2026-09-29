@@ -509,7 +509,7 @@ Review: ✅ r2
 
 ## Task 9: Closing — full verification
 
-Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task 10, task 11, task 12, task 13, task 14
+Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task 10, task 11, task 12, task 13, task 14, task 15, task 16
 
 **Files**
 
@@ -731,6 +731,61 @@ Depends on: task 2, task 4, task 6, task 7, task 13
 - [x] Commit: `refactor(shared): share pino-http correlation options; transcoder access log carries correlationId (A4 S2)`.
 
 Review: ✅ r2
+
+## Amendment 4 (Dev-directed, 2026-09-29) — A5 merge-risk r1: BLOCKER (GPU capabilities) + SUGGESTED (probe không huỷ lời gọi nền)
+
+> `docs/impl/M-platform-operations-US2-review/merge-risk.md`. BLOCKER: nhánh GPU chưa chạy live và `docker-compose.yml:147` `capabilities: [gpu, video]` có thể làm Docker đặt `NVIDIA_DRIVER_CAPABILITIES=video` (bỏ `utility` → không có `nvidia-smi` trong container) dù `environment` dòng 127 đã đặt `compute,video,utility` — thứ tự ưu tiên giữa hai nguồn không chắc; nếu xảy ra, GPU probe `down` → api 503 → nginx/web không khởi động. Dev chọn apply theo recommend: Task 15 đưa `capabilities` thành tập siêu `[gpu, compute, video, utility]` (khớp dòng 127, không bớt gì); bằng chứng GPU live vẫn là việc của Dev trên host GPU (Finding 19). SUGGESTED 3: `withTimeout` 1 s không huỷ lời gọi nền — Task 16 huỷ `HeadBucket` bằng `AbortSignal` và cho redis fail-fast khi client chưa `ready`; Postgres (`$queryRaw`, Prisma không hỗ trợ abort per-query) ghi NOTE. SUGGESTED 2 (health gộp "api sống" với "mọi thứ sau api sống", chặn nginx/web) là quyết định của ticket A1 / D8 → OPEN(SA), không sửa code.
+
+## Task 15: NFR hồi quy — `docker-compose.yml`: GPU `capabilities` tập siêu (A5 r1 BLOCKER)
+
+Depends on: task 5
+
+**Files**
+
+- Modify: `docker-compose.yml` (dòng `capabilities: [gpu, video]` của `services.transcoder.deploy.resources.reservations.devices[0]`)
+
+**Interfaces**
+
+- Consumes: `environment.NVIDIA_DRIVER_CAPABILITIES: compute,video,utility` (US1, `docker-compose.yml:127`) — nguồn sự thật về capability cần có.
+- Produces: `capabilities: [gpu, compute, video, utility] # A5 r1 — khớp NVIDIA_DRIVER_CAPABILITIES ở environment; utility = nvidia-smi cho GPU probe (D7)`. Không đổi `driver`, `count`, không đổi env, không đổi `docker-compose.cpu.yml`.
+
+**Steps**
+
+- [ ] Failing check: `docker compose config --format json | jq -e '.services.transcoder.deploy.resources.reservations.devices[0].capabilities == ["gpu","compute","video","utility"]'`. Expect: FAIL (exit 1) — hiện là `["gpu","video"]`.
+- [ ] Sửa dòng `capabilities` như Interfaces.
+- [ ] Chạy lại lệnh `jq -e`. Expect: exit 0. Thêm: `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml config --format json | jq -e '.services.transcoder.deploy == null or (.services.transcoder.deploy.resources.reservations.devices // []) == []'` — nhánh CPU vẫn không yêu cầu GPU (exit 0).
+
+Exempt: config — verified by docker compose config (jq) trước/sau + bash scripts/verify-phase0.sh nhánh CPU; không có logic mới, chỉ mở rộng danh sách capability. Nhánh GPU: Dev chạy `bash scripts/verify-phase0.sh` trên host NVIDIA (DoD-0-2) và `curl /api/health` → `checks.gpu === "ok"` trước GATE 4 (Finding 19).
+
+- [ ] `cmd.lint` (prettier phủ YAML). Paste output.
+- [ ] Commit: `chore(compose): request compute/utility GPU capabilities so nvidia-smi is present for the probe (A5 r1)`.
+
+## Task 16: AC3 — `api` health: huỷ `HeadBucket` khi quá hạn, redis fail-fast khi chưa `ready` (A5 r1 SUGGESTED 3)
+
+Depends on: task 1, task 3, task 10
+
+**Files**
+
+- Modify: `packages/storage/src/storage.client.ts` (`ping`)
+- Modify: `packages/storage/src/storage.client.ping.test.ts`
+- Modify: `apps/api/src/health/health.controller.ts`
+- Modify: `apps/api/src/health/health.controller.spec.ts`
+
+**Interfaces**
+
+- Consumes: `CHECK_TIMEOUT_MS = 1_000` (mission D8, đã có); `StorageClient.ping()` (Task 1); `withTimeout`/`probe` (Task 3).
+- Produces: `StorageClient.ping(signal?: AbortSignal): Promise<void>` = `await this.s3.send(new HeadBucketCommand({ Bucket: this.buckets.source }), { abortSignal: signal }); // A5 r1 — huỷ request thua withTimeout, không giữ socket của pool 50` (tham số tuỳ chọn: caller cũ không đổi). `health.controller.ts`: `probe(() => this.storage.ping(AbortSignal.timeout(CHECK_TIMEOUT_MS)))` (`// mission D8`) và `probe(() => this.redis.status === "ready" ? this.redis.ping() : Promise.reject(new Error("redis not ready")))` (`// A5 r1 — không xếp PING vào offline queue của ioredis khi mất kết nối`). Body/status/contract không đổi; `probe` vẫn nuốt lỗi → `"fail"` (AC4).
+- Spec `health.controller.spec.ts`: helper `healthyRedis()` có sẵn trả mock `{ ping }` — thêm `status: "ready"` vào helper (mở rộng fixture cho interface mới; ghi rõ trong report); case mới: redis mock `{ status: "reconnecting", ping: jest.fn() }` → `checks.redis === "fail"`, 503, `ping` KHÔNG được gọi; case mới: `storage.ping` được gọi với `expect.any(AbortSignal)` và `jest.spyOn(AbortSignal, "timeout")` nhận `1_000` (cùng kiểu Task 10).
+- Spec `storage.client.ping.test.ts`: monkey-patch `send` ghi cả tham số thứ 2; case mới: `client.ping(signal)` → `sent[0][1].abortSignal === signal`; case cũ (không signal) giữ nguyên, assert `abortSignal === undefined`.
+
+**Steps**
+
+- [ ] Failing test: thêm case storage (`abortSignal` được truyền) và 2 case api ở trên. Chạy `pnpm --filter @myflix/storage test`, `pnpm --filter @myflix/api test -- health.controller`. Expect: FAIL — storage: `TS2554 Expected 0 arguments, but got 1`; api: redis mock `reconnecting` vẫn "ok" (ping được gọi), `storage.ping` gọi không tham số.
+- [ ] Sửa `storage.client.ts`, build `pnpm --filter @myflix/storage build`, sửa `health.controller.ts` như Interfaces.
+- [ ] Chạy lại 2 lệnh test. Expect: PASS.
+- [ ] Self-review checkpoint: `ping()` không tham số vẫn chạy như cũ (caller nào khác? `grep -rn "\.ping(" apps packages --include=*.ts` chỉ health.controller); `probe` vẫn bọc `withTimeout` cho cả 3 check.
+- [ ] Chạy `pnpm --filter @myflix/storage test`, `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/api build`, `cmd.lint`. Paste output vào PR.
+- [ ] Commit: `fix(api): abort the MinIO health probe on timeout and fail redis fast when not ready (A5 r1)`.
 
 ## Findings for the PR
 
