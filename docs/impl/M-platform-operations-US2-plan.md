@@ -505,7 +505,7 @@ Review: ✅ r2
 
 ## Task 9: Closing — full verification
 
-Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8
+Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task 10, task 11, task 12
 
 **Files**
 
@@ -538,6 +538,86 @@ Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8
 - [ ] Per US1 AC27 (đã chạy ở Task 5, chạy lại lần cuối ở đây để xác nhận không hồi quy sau các task khác): `bash scripts/verify-phase0.sh` → DoD-0-1 PASS (7 service healthy cả nhánh GPU lẫn CPU nếu test được cả hai).
 - [ ] `docker compose down`.
 - [ ] Commit: `chore: final verification for M-platform-operations-US2 (health check + correlation ID)` (nếu có thay đổi cần commit — nếu không, bỏ qua bước commit và ghi trong PR rằng Task 9 chỉ verify).
+
+## Amendment 1 (Dev-directed, 2026-09-29) — A3/Task 9 findings the Dev chose to apply
+
+> Nguồn: `docs/impl/M-platform-operations-US2-review/dev-decisions.md`. Dev chọn (b) "apply" cho cả 5 mục: Task 3 S3/S4 → Task 10; Task 4 S2 (+ spec tối thiểu, phủ luôn S1) → Task 11; Task 9 T14 → Task 12. Task 3/4 chỉ tick sau khi Task 10/11 qua A3; Task 9 chạy lại T1/T4/T4b/T5/T14 sau khi 3 task này merge.
+
+## Task 10: AC2/AC3 — `apps/api`: `probeGpu` abort fetch thua timeout + khôi phục citation 503 (A3 Task 3 S3, S4)
+
+Depends on: task 3
+
+**Files**
+
+- Modify: `apps/api/src/health/health.controller.ts`
+- Modify: `apps/api/src/health/health.controller.spec.ts`
+
+**Interfaces**
+
+- Consumes: `CHECK_TIMEOUT_MS = 1_000` (mission D8, đã có trong file), `TRANSCODER_GPU_URL` (mission D7, đã có).
+- Produces: không có interface mới. Hai thay đổi trong `health.controller.ts`:
+  1. S3 — thêm lại doc comment trên class `HealthController`: `/** Docker healthcheck target. 503 when postgres/redis/minio fail or gpu is down/unreachable (API spec §12, mission D7). */` — comment-only, không đổi hành vi.
+  2. S4 — trong `probeGpu()`, dòng `const res = await fetch(TRANSCODER_GPU_URL);` đổi thành `const res = await fetch(TRANSCODER_GPU_URL, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) }); // mission D8 — huỷ request thua withTimeout, không để socket treo tới timeout mặc định của undici`. `withTimeout()` giữ nguyên (vẫn là nguồn của kết quả `"unreachable"` — `AbortSignal.timeout` chỉ dọn socket).
+- Không thêm dependency, không đổi contract body/status.
+
+**Steps**
+
+- [ ] Failing test: thêm case vào `describe("AC3 …")` của `health.controller.spec.ts`: dựng controller với mọi phụ thuộc healthy, `global.fetch = jest.fn().mockResolvedValue(<200 {gpu:"ok"}>)`, gọi `check()`, assert `fetch` được gọi với `(TRANSCODER_GPU_URL, expect.objectContaining({ signal: expect.any(AbortSignal) }))` và `signal.aborted === false` ngay sau khi gọi. Chạy `pnpm --filter @myflix/api test -- health.controller`. Expect: FAIL — `fetch` hiện được gọi với 1 tham số, `expect.objectContaining` không khớp `undefined`.
+- [ ] Sửa `health.controller.ts` đúng 2 điểm ở Interfaces.
+- [ ] Chạy lại `pnpm --filter @myflix/api test -- health.controller`. Expect: PASS — toàn bộ spec (cũ + mới) xanh; case "marks gpu unreachable when the transcoder probe hangs" vẫn xanh (fake timers không can thiệp `AbortSignal.timeout`, `withTimeout` vẫn quyết định kết quả).
+- [ ] Self-review checkpoint: không đổi giá trị `CHECK_TIMEOUT_MS`; comment citation có mặt ở cả class header lẫn dòng `signal`.
+- [ ] Chạy `pnpm --filter @myflix/api test` (scoped) và `cmd.lint`. Paste output vào PR.
+- [ ] Commit: `fix(api): abort losing gpu probe fetch, restore 503 citation on HealthController (A3 S3, S4)`.
+
+## Task 11: AC1/AC2 — `apps/transcoder`: `GpuProbeService` in-flight guard + spec tối thiểu (A3 Task 4 S2, phủ S1)
+
+Depends on: task 4
+
+**Files**
+
+- Create: `apps/transcoder/src/health/gpu-probe.service.spec.ts`
+- Modify: `apps/transcoder/src/health/gpu-probe.service.ts`
+
+**Interfaces**
+
+- Consumes: `GPU_CHECK_INTERVAL_MS = 10_000`, `GPU_STALE_MS = 30_000` (mission D7, đã có), `execFileAsync("nvidia-smi", ["-L"], { timeout: 5_000 })` (đã có).
+- Produces: không có interface mới. Thay đổi trong `gpu-probe.service.ts`: thêm field `private inFlight = false;` và ở đầu `runCheck()`: `if (this.inFlight) return; // A3 S2 — một nvidia-smi treo (D-state) không bị SIGKILL, không cho vòng 10s dồn tiến trình` rồi `this.inFlight = true;`; trong `finally` thêm `this.inFlight = false;` (cạnh `this.lastCheckedAt = Date.now();`). `read()` giữ nguyên.
+- Spec tối thiểu (thiết kế §10 vẫn coi compose T4/T4b/T4c là bằng chứng tích hợp; spec này chỉ phủ nhánh logic thuần): `jest.mock("node:child_process")` để `execFile` là mock tự gọi callback (thành công / lỗi / treo — không gọi callback cho tới khi test resolve thủ công); `jest.spyOn(Date, "now")` cho ngưỡng stale. Gọi `runCheck()` qua `(service as unknown as { runCheck(): Promise<void> }).runCheck()`; KHÔNG test `onModuleInit`/`setInterval` (giữ quyết định Finding 13).
+
+**Steps**
+
+- [ ] Failing test: viết `gpu-probe.service.spec.ts` với 4 case: (1) `read()` là `false` trước mọi lần check; (2) sau `runCheck()` thành công → `read()` `true`; (3) sau `runCheck()` lỗi → `false`; (4) **S2** — khi lần `runCheck()` đầu còn treo (callback chưa gọi), gọi `runCheck()` lần hai → `execFile` mock chỉ được gọi **1** lần; sau khi resolve lần đầu, gọi lần ba → 2 lần. Thêm case (5): sau thành công, `Date.now` tiến `GPU_STALE_MS + 1` → `read()` `false`. Chạy `pnpm --filter @myflix/transcoder test -- gpu-probe.service`. Expect: FAIL — case (4) báo `execFile` được gọi 2 lần (chưa có guard); các case khác có thể pass.
+- [ ] Thêm `inFlight` vào `gpu-probe.service.ts` đúng như Interfaces.
+- [ ] Chạy lại `pnpm --filter @myflix/transcoder test -- gpu-probe.service`. Expect: PASS 5/5.
+- [ ] Self-review checkpoint: `lastCheckedAt` vẫn được set trong `finally` mọi nhánh; guard không đổi hành vi khi không có lệnh treo.
+- [ ] Chạy `pnpm --filter @myflix/transcoder test` (scoped), `pnpm --filter @myflix/transcoder build`, và `cmd.lint`. Paste output vào PR.
+- [ ] Commit: `fix(transcoder): guard GpuProbeService.runCheck against overlapping nvidia-smi runs (A3 S2)`.
+
+## Task 12: AC10 — `api` + `transcoder`: ioredis `error` listener qua Pino (Task 9 T14)
+
+Depends on: none
+
+**Files**
+
+- Modify: `apps/api/src/redis/redis.module.ts`
+- Create: `apps/api/src/redis/redis.module.spec.ts`
+- Modify: `apps/transcoder/src/redis.module.ts`
+- Create: `apps/transcoder/src/redis.module.spec.ts`
+
+**Interfaces**
+
+- Consumes: `Logger` từ `@nestjs/common` (static logger; cả hai app đã `app.useLogger(app.get(Logger))` của `nestjs-pino` trong `main.ts`, nên `new Logger("Redis").error(...)` ra JSON qua Pino — không import `nestjs-pino` vào module này).
+- Produces: trong mỗi file, export thêm `export const createRedisClient = (config: ConfigService): Redis => { const client = new Redis({ host: …, port: …, maxRetriesPerRequest: null }); client.on("error", (err: Error) => new Logger("Redis").error(err.message)); // T14 / mission D10 — không có listener thì ioredis in "[ioredis] Unhandled error event" thẳng ra stdout, phá "mọi dòng log là JSON"\n  return client; };` và các provider `useFactory` dùng `createRedisClient` (api: cả `REDIS` lẫn `REDIS_SUBSCRIBER`). Không đổi tên provider/token, không đổi option.
+- Nguyên nhân gốc (Task 9 report): `new Redis(...)` ở 2 module này không có listener `error`; ioredis (`Redis.js:553`) `console.error` khi thiếu. BullMQ tự gắn listener trên connection riêng của nó — không phải nguồn.
+
+**Steps**
+
+- [ ] Failing test: viết 2 spec giống nhau (mỗi app một file): `jest.mock("ioredis", () => ({ __esModule: true, default: class extends EventEmitter { constructor(public opts: unknown) { super(); } } }))`, `const errorSpy = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined)`, dựng `createRedisClient({ getOrThrow: (k) => ({ REDIS_HOST: "redis", REDIS_PORT: 6379 })[k] } as never)`, `client.emit("error", new Error("ECONNREFUSED"))` → assert không throw và `errorSpy` được gọi với `"ECONNREFUSED"`. Chạy `pnpm --filter @myflix/api test -- redis.module` và `pnpm --filter @myflix/transcoder test -- redis.module`. Expect: FAIL — `createRedisClient` chưa export (`TS2305`).
+- [ ] Sửa 2 `redis.module.ts` đúng như Interfaces.
+- [ ] Chạy lại 2 lệnh test. Expect: PASS.
+- [ ] Self-review checkpoint: `maxRetriesPerRequest: null` giữ nguyên; `health.controller.ts` (`@Inject(REDIS)`) và `job-events.publisher.ts` không cần sửa (token không đổi).
+- [ ] Chạy `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/transcoder test` (scoped) và `cmd.lint`. Paste output vào PR.
+- [ ] Commit: `fix: route ioredis error events through the Pino logger in api and transcoder (T14)`.
 
 ## Findings for the PR
 
