@@ -13,6 +13,7 @@ const TRANSCODER_GPU_URL = "http://transcoder:4100/health/gpu";
 type CheckState = "ok" | "fail";
 type GpuState = "ok" | "not_required" | "down" | "unreachable"; // mission D7 / US2 Q4, Q11
 
+/** Docker healthcheck target. 503 when postgres/redis/minio fail or gpu is down/unreachable (API spec §12, mission D7). */
 @Controller("health")
 export class HealthController {
   constructor(
@@ -52,7 +53,9 @@ async function probeGpu(): Promise<GpuState> {
     // Cả fetch() lẫn res.json() chạy bên trong withTimeout(), nên body treo
     // sau khi header đã về cũng bị tính vào CHECK_TIMEOUT_MS (S5).
     return await withTimeout(async () => {
-      const res = await fetch(TRANSCODER_GPU_URL);
+      const res = await fetch(TRANSCODER_GPU_URL, {
+        signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+      }); // mission D8 — huỷ request thua withTimeout, không để socket treo tới timeout mặc định của undici
       if (res.status === 503) return "down";
       const body: unknown = await res.json();
       const gpu = (body as { gpu?: unknown } | null)?.gpu;

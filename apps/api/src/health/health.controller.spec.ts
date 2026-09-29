@@ -4,6 +4,9 @@ import { HealthController } from "./health.controller";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { StorageService } from "../storage/storage.service";
 
+// mirrors TRANSCODER_GPU_URL in health.controller.ts (mission D7) — not exported, no new interface
+const TRANSCODER_GPU_URL = "http://transcoder:4100/health/gpu";
+
 const mockRes = () => ({ status: jest.fn() }) as unknown as Response;
 
 const healthyPrisma = () =>
@@ -212,6 +215,28 @@ describe("HealthController", () => {
 
       expect(body.checks.gpu).toBe("unreachable");
       expect(res.status).toHaveBeenCalledWith(503);
+    });
+
+    it("aborts a losing gpu probe fetch instead of leaving the socket open past CHECK_TIMEOUT_MS", async () => {
+      const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue({
+        status: 200,
+        json: async () => ({ gpu: "ok" }),
+      } as never);
+      const controller = new HealthController(
+        healthyPrisma(),
+        healthyRedis(),
+        healthyStorage(),
+      );
+      const res = mockRes();
+
+      await controller.check(res);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        TRANSCODER_GPU_URL,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      const signal = fetchMock.mock.calls[0]?.[1]?.signal as AbortSignal;
+      expect(signal.aborted).toBe(false);
     });
   });
 
