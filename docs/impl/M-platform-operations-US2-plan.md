@@ -521,27 +521,29 @@ Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task
 
 **Steps**
 
-- [ ] Chạy full `cmd.test`: `pnpm -r test`. Paste output đầy đủ vào PR.
-- [ ] Chạy full `cmd.lint`: `npx eslint . && npx prettier --check .`. Paste output vào PR.
-- [ ] Chạy `pnpm --filter web build` (AC8 Edge bundle — bằng chứng đóng, dù Task 8 đã chạy riêng). Paste output.
-- [ ] Chạy `pnpm -r build` (toàn repo, xác nhận `@nestjs/platform-express` mới ở `transcoder` không phá build service khác).
-- [ ] (Host, Docker only, live stack) `docker compose up -d --build --wait --wait-timeout 180`. Xác nhận 7 service `healthy`.
-- [ ] T1: `curl -s -o body.json -w '%{http_code}' http://<lan-ip>/api/health` (không kèm `Authorization`) → `200`; `body.json` có đủ `postgres/redis/minio/gpu`, mỗi cái `"ok"` (hoặc `"not_required"` cho `gpu` trên nhánh CPU).
-- [ ] T2/T2b: `docker compose stop redis` → gọi lại như T1 → `503`, `checks.redis === "fail"`, 3 cái còn lại sống; `docker compose start redis`, đợi `healthy`, gọi lại → `200`.
-- [ ] T3/T3b: lặp T2 cho `postgres`, `minio`; rồi dừng `redis` + `minio` cùng lúc → `503`, đánh dấu đúng cả hai, `postgres`/`gpu` báo sống.
-- [ ] T4/T4b: làm GPU không truy cập được (cách do Dev chọn) hoặc `docker compose stop transcoder` → gọi như T1 → `503`; T4b: `checks.gpu` mang trạng thái riêng `"unreachable"` (khác `"down"`), 3 phụ thuộc kia sống; `docker compose start transcoder`.
-- [ ] T4c: dựng bằng `docker-compose.cpu.yml` (nếu môi trường có sẵn override này theo US1 AC26) → `200`, `checks.gpu === "not_required"`.
-- [ ] T5: `docker compose pause redis`; `curl -w '%{time_total}'` → `503`, `time_total ≤ 1.5`; `docker compose unpause redis`.
-- [ ] T6: lấy body của T1 và T2, `grep` tìm `redis://`, `postgres://`, `:5432`, `:6379`, `:9000`, giá trị `S3_SECRET_KEY`, `POSTGRES_PASSWORD`, `ECONNREFUSED` → 0 kết quả.
-- [ ] T7–T10: đã chạy ở Task 6's `correlation-id.e2e-spec.ts`; chạy lại 1 lần qua stack thật (`docker compose logs api | grep t7-probe-0001` v.v.) để xác nhận log Docker thật (không chỉ Jest supertest) mang đúng `correlationId`.
-- [ ] T11: mở 1 trang có SSR với `X-Correlation-Id: t11-probe-0001`; `docker compose logs web api | grep t11-probe-0001` → cả 2 service có dòng log mang giá trị đó.
-- [ ] T12: nếu ticket ingest Phase 1 đã hiện thực enqueue thật tính tới thời điểm merge — chạy T12 theo văn bản; nếu chưa (theo OPEN(BA) hiện tại) — ghi rõ trong PR là T12 được thay bằng bằng chứng `transcode.processor.spec.ts` ở Task 7, dẫn link.
-- [ ] T12b: kích hoạt job dọn dẹp theo lịch (hoặc đợi `MaintenanceService` cron tự chạy) → `docker compose logs transcoder | grep <uuid quan sát được>` → mọi dòng mang cùng 1 `correlationId`.
-- [ ] T13: đăng nhập bằng tài khoản thử `T13-Probe-Pass-9`; tìm mật khẩu, access token, `refresh_token` trong log 3 service → 0 kết quả; đếm dòng log có trường `body` → 0; xác nhận header nhạy cảm hiện `[REDACTED]`. **S8(b) — bổ sung riêng cho `transcoder`** (không có unit test HTTP nào ở Task 7 phủ redact của `transcoder`): `docker compose exec -T api node -e "fetch('http://transcoder:4100/health/gpu',{headers:{authorization:'Bearer t13-secret'}}).then(()=>{})"`; sau đó `docker compose logs transcoder | grep -c t13-secret` → `0`, `docker compose logs transcoder | grep -c '\[REDACTED\]'` → `>=1`.
-- [ ] T14: `docker compose logs api web transcoder --no-log-prefix | jq -c . > /dev/null` → thoát mã 0.
-- [ ] Per US1 AC27 (đã chạy ở Task 5, chạy lại lần cuối ở đây để xác nhận không hồi quy sau các task khác): `bash scripts/verify-phase0.sh` → DoD-0-1 PASS (7 service healthy cả nhánh GPU lẫn CPU nếu test được cả hai).
-- [ ] `docker compose down`.
-- [ ] Commit: `chore: final verification for M-platform-operations-US2 (health check + correlation ID)` (nếu có thay đổi cần commit — nếu không, bỏ qua bước commit và ghi trong PR rằng Task 9 chỉ verify).
+- [x] Chạy full `cmd.test`: `pnpm -r test`. Paste output đầy đủ vào PR.
+- [x] Chạy full `cmd.lint`: `npx eslint . && npx prettier --check .`. Paste output vào PR.
+- [x] Chạy `pnpm --filter web build` (AC8 Edge bundle — bằng chứng đóng, dù Task 8 đã chạy riêng). Paste output.
+- [x] Chạy `pnpm -r build` (toàn repo, xác nhận `@nestjs/platform-express` mới ở `transcoder` không phá build service khác).
+- [x] (Host, Docker only, live stack) `docker compose up -d --build --wait --wait-timeout 180`. Xác nhận 7 service `healthy`.
+- [x] T1: `curl -s -o body.json -w '%{http_code}' http://<lan-ip>/api/health` (không kèm `Authorization`) → `200`; `body.json` có đủ `postgres/redis/minio/gpu`, mỗi cái `"ok"` (hoặc `"not_required"` cho `gpu` trên nhánh CPU).
+- [x] T2/T2b: `docker compose stop redis` → gọi lại như T1 → `503`, `checks.redis === "fail"`, 3 cái còn lại sống; `docker compose start redis`, đợi `healthy`, gọi lại → `200`.
+- [x] T3/T3b: lặp T2 cho `postgres`, `minio`; rồi dừng `redis` + `minio` cùng lúc → `503`, đánh dấu đúng cả hai, `postgres`/`gpu` báo sống.
+- [x] T4/T4b: làm GPU không truy cập được (cách do Dev chọn) hoặc `docker compose stop transcoder` → gọi như T1 → `503`; T4b: `checks.gpu` mang trạng thái riêng `"unreachable"` (khác `"down"`), 3 phụ thuộc kia sống; `docker compose start transcoder`.
+- [x] T4c: dựng bằng `docker-compose.cpu.yml` (nếu môi trường có sẵn override này theo US1 AC26) → `200`, `checks.gpu === "not_required"`.
+- [x] T5: `docker compose pause redis`; `curl -w '%{time_total}'` → `503`, `time_total ≤ 1.5`; `docker compose unpause redis`.
+- [x] T6: lấy body của T1 và T2, `grep` tìm `redis://`, `postgres://`, `:5432`, `:6379`, `:9000`, giá trị `S3_SECRET_KEY`, `POSTGRES_PASSWORD`, `ECONNREFUSED` → 0 kết quả.
+- [x] T7–T10: đã chạy ở Task 6's `correlation-id.e2e-spec.ts`; chạy lại 1 lần qua stack thật (`docker compose logs api | grep t7-probe-0001` v.v.) để xác nhận log Docker thật (không chỉ Jest supertest) mang đúng `correlationId`.
+- [x] T11: mở 1 trang có SSR với `X-Correlation-Id: t11-probe-0001`; `docker compose logs web api | grep t11-probe-0001` → cả 2 service có dòng log mang giá trị đó.
+- [x] T12: nếu ticket ingest Phase 1 đã hiện thực enqueue thật tính tới thời điểm merge — chạy T12 theo văn bản; nếu chưa (theo OPEN(BA) hiện tại) — ghi rõ trong PR là T12 được thay bằng bằng chứng `transcode.processor.spec.ts` ở Task 7, dẫn link.
+- [x] T12b: kích hoạt job dọn dẹp theo lịch (hoặc đợi `MaintenanceService` cron tự chạy) → `docker compose logs transcoder | grep <uuid quan sát được>` → mọi dòng mang cùng 1 `correlationId`.
+- [x] T13: đăng nhập bằng tài khoản thử `T13-Probe-Pass-9`; tìm mật khẩu, access token, `refresh_token` trong log 3 service → 0 kết quả; đếm dòng log có trường `body` → 0; xác nhận header nhạy cảm hiện `[REDACTED]`. **S8(b) — bổ sung riêng cho `transcoder`** (không có unit test HTTP nào ở Task 7 phủ redact của `transcoder`): `docker compose exec -T api node -e "fetch('http://transcoder:4100/health/gpu',{headers:{authorization:'Bearer t13-secret'}}).then(()=>{})"`; sau đó `docker compose logs transcoder | grep -c t13-secret` → `0`, `docker compose logs transcoder | grep -c '\[REDACTED\]'` → `>=1`.
+- [x] T14: `docker compose logs api web transcoder --no-log-prefix | jq -c . > /dev/null` → thoát mã 0.
+- [x] Per US1 AC27 (đã chạy ở Task 5, chạy lại lần cuối ở đây để xác nhận không hồi quy sau các task khác): `bash scripts/verify-phase0.sh` → DoD-0-1 PASS (7 service healthy cả nhánh GPU lẫn CPU nếu test được cả hai).
+- [x] `docker compose down`.
+- [x] Commit: `chore: final verification for M-platform-operations-US2 (health check + correlation ID)` (nếu có thay đổi cần commit — nếu không, bỏ qua bước commit và ghi trong PR rằng Task 9 chỉ verify).
+
+Review: ✅ verified (full run at Task 12 HEAD, T14 subset rerun at Task 13 HEAD — all PASS)
 
 ## Amendment 1 (Dev-directed, 2026-09-29) — A3/Task 9 findings the Dev chose to apply
 
@@ -685,12 +687,14 @@ Depends on: task 4, task 7, task 12
 
 **Steps**
 
-- [ ] Failing test: viết `bull-error.logger.spec.ts` ở mỗi app — dựng 3 `Queue` giả bằng `Object.assign(new EventEmitter(), { name: "transcode" })` (v.v.), `jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined)`, `new BullErrorLogger(q1, q2, q3 as never …).onModuleInit()`, rồi `q2.emit("error", new Error("ECONNREFUSED"))` → assert không throw và `Logger.prototype.error` được gọi với chuỗi chứa `"ECONNREFUSED"`; case 2: KHÔNG gọi `onModuleInit`, `q1.emit("error", new Error("x"))` → assert **throw** (chứng minh listener là thứ chặn EventEmitter ném). Thêm vào mỗi processor spec 1 case: `processor.onWorkerError(new Error("boom"))` → `logger.error` (mock PinoLogger sẵn có trong spec) được gọi với `expect.objectContaining({ err: expect.any(Error) })`. Chạy `pnpm --filter @myflix/api test -- bull-error` và `pnpm --filter @myflix/transcoder test`. Expect: FAIL — `TS2307 Cannot find module './bull-error.logger'`; processor spec `TS2339 Property 'onWorkerError' does not exist`.
-- [ ] Tạo 2 `bull-error.logger.ts`, thêm provider vào 2 module, thêm `onWorkerError` vào 3 processor đúng như Interfaces.
-- [ ] Chạy lại 2 lệnh test. Expect: PASS.
-- [ ] Self-review checkpoint: `BullErrorLogger` chỉ gắn listener, không gọi lệnh Redis nào (không làm chậm bootstrap); `@OnWorkerEvent` import từ `@nestjs/bullmq` (không phải `bullmq`).
-- [ ] Chạy `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/transcoder test`, `pnpm --filter @myflix/api build`, `pnpm --filter @myflix/transcoder build`, và `cmd.lint`. Paste output vào PR.
-- [ ] Commit: `fix: log BullMQ queue/worker errors through Pino instead of raw console output (T14)`.
+- [x] Failing test: viết `bull-error.logger.spec.ts` ở mỗi app — dựng 3 `Queue` giả bằng `Object.assign(new EventEmitter(), { name: "transcode" })` (v.v.), `jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined)`, `new BullErrorLogger(q1, q2, q3 as never …).onModuleInit()`, rồi `q2.emit("error", new Error("ECONNREFUSED"))` → assert không throw và `Logger.prototype.error` được gọi với chuỗi chứa `"ECONNREFUSED"`; case 2: KHÔNG gọi `onModuleInit`, `q1.emit("error", new Error("x"))` → assert **throw** (chứng minh listener là thứ chặn EventEmitter ném). Thêm vào mỗi processor spec 1 case: `processor.onWorkerError(new Error("boom"))` → `logger.error` (mock PinoLogger sẵn có trong spec) được gọi với `expect.objectContaining({ err: expect.any(Error) })`. Chạy `pnpm --filter @myflix/api test -- bull-error` và `pnpm --filter @myflix/transcoder test`. Expect: FAIL — `TS2307 Cannot find module './bull-error.logger'`; processor spec `TS2339 Property 'onWorkerError' does not exist`.
+- [x] Tạo 2 `bull-error.logger.ts`, thêm provider vào 2 module, thêm `onWorkerError` vào 3 processor đúng như Interfaces.
+- [x] Chạy lại 2 lệnh test. Expect: PASS.
+- [x] Self-review checkpoint: `BullErrorLogger` chỉ gắn listener, không gọi lệnh Redis nào (không làm chậm bootstrap); `@OnWorkerEvent` import từ `@nestjs/bullmq` (không phải `bullmq`).
+- [x] Chạy `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/transcoder test`, `pnpm --filter @myflix/api build`, `pnpm --filter @myflix/transcoder build`, và `cmd.lint`. Paste output vào PR.
+- [x] Commit: `fix: log BullMQ queue/worker errors through Pino instead of raw console output (T14)`.
+
+Review: ✅ r1 (S-1 wiring-metadata tests declined by plan owner — live T14 rerun is the wiring proof, recorded in PR Findings; S-2 detect_changes run via CLI after the git/Xcode workaround)
 
 ## Findings for the PR
 
