@@ -509,7 +509,7 @@ Review: ✅ r2
 
 ## Task 9: Closing — full verification
 
-Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task 10, task 11, task 12
+Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task 10, task 11, task 12, task 13
 
 **Files**
 
@@ -628,6 +628,69 @@ Depends on: none
 - [x] Commit: `fix: route ioredis error events through the Pino logger in api and transcoder (T14)`.
 
 Review: ✅ r1
+
+## Amendment 2 (Dev-directed, 2026-09-29) — Task 9 T14 rerun: BullMQ Queue/Worker `error` không có listener
+
+> Task 12 sửa đúng 2 client ioredis của `RedisModule`; T14 chạy lại vẫn FAIL vì `bullmq` `QueueBase.emit("error")` (`queue-base.js:90-101`) `console.error(err)` (stack trace thô, nhiều dòng) khi `Queue`/`Worker` không có listener `error` — mỗi `BullModule.registerQueue` tạo 1 `Queue`, mỗi `@Processor` tạo 1 `Worker`, đều tự nối connection riêng. Task 9 rerun đếm 38 dòng từ `api`, 25 từ `transcoder`. Cùng gốc T14 (Dev đã duyệt "apply"), nên nối tiếp bằng Task 13.
+
+## Task 13: AC10 — `api` + `transcoder`: listener `error` cho mọi BullMQ `Queue`/`Worker` qua Pino (Task 9 T14, tiếp Task 12)
+
+Depends on: task 4, task 7, task 12
+
+**Files**
+
+- Create: `apps/api/src/queue/bull-error.logger.ts`
+- Create: `apps/api/src/queue/bull-error.logger.spec.ts`
+- Modify: `apps/api/src/queue/queue.module.ts` (thêm provider)
+- Create: `apps/transcoder/src/bull-error.logger.ts`
+- Create: `apps/transcoder/src/bull-error.logger.spec.ts`
+- Modify: `apps/transcoder/src/app.module.ts` (thêm provider)
+- Modify: `apps/transcoder/src/jobs/transcode.processor.ts`, `apps/transcoder/src/jobs/subtitle.processor.ts`, `apps/transcoder/src/jobs/cleanup.processor.ts` (thêm 1 method `@OnWorkerEvent("error")`)
+- Modify: `apps/transcoder/src/jobs/transcode.processor.spec.ts`, `subtitle.processor.spec.ts`, `cleanup.processor.spec.ts` (thêm 1 case)
+
+**Interfaces**
+
+- Consumes: `QUEUE_TRANSCODE`, `QUEUE_SUBTITLE`, `QUEUE_CLEANUP` từ `@myflix/shared`; `InjectQueue`, `OnWorkerEvent` từ `@nestjs/bullmq`; `Queue` từ `bullmq`; `Logger` từ `@nestjs/common` (static logger → `app.useLogger(nestjs-pino)` → JSON, như Task 12); `PinoLogger` đã inject sẵn trong 3 processor.
+- Produces (giống nhau ở 2 app, nội dung nguyên văn):
+  ```ts
+  // bull-error.logger.ts
+  @Injectable()
+  export class BullErrorLogger implements OnModuleInit {
+    private readonly logger = new Logger("BullMQ");
+    constructor(
+      @InjectQueue(QUEUE_TRANSCODE) private readonly transcode: Queue,
+      @InjectQueue(QUEUE_SUBTITLE) private readonly subtitle: Queue,
+      @InjectQueue(QUEUE_CLEANUP) private readonly cleanup: Queue,
+    ) {}
+    onModuleInit(): void {
+      // T14 / mission D10 — bullmq QueueBase.emit("error") console.error() stack trace thô khi Queue không có listener
+      for (const queue of [this.transcode, this.subtitle, this.cleanup]) {
+        queue.on("error", (err: Error) =>
+          this.logger.error(`${queue.name}: ${err.message}`),
+        );
+      }
+    }
+  }
+  ```
+  `queue.module.ts` (api): `providers: [BullErrorLogger]` (giữ `exports: [BullModule]`); `app.module.ts` (transcoder): thêm `BullErrorLogger` vào `providers`.
+- Mỗi processor (transcoder) thêm đúng 1 method, đặt ngay sau `process()`:
+  ```ts
+  @OnWorkerEvent("error")
+  onWorkerError(err: Error): void {
+    this.logger.error({ err }, "worker error"); // T14 / mission D10 — Worker không có listener "error" thì bullmq console.error() stack trace thô
+  }
+  ```
+  (`this.logger` là `PinoLogger` đã có trong 3 class; không đổi constructor.)
+- Không đổi option connection, không đổi tên queue, không thêm dependency.
+
+**Steps**
+
+- [ ] Failing test: viết `bull-error.logger.spec.ts` ở mỗi app — dựng 3 `Queue` giả bằng `Object.assign(new EventEmitter(), { name: "transcode" })` (v.v.), `jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined)`, `new BullErrorLogger(q1, q2, q3 as never …).onModuleInit()`, rồi `q2.emit("error", new Error("ECONNREFUSED"))` → assert không throw và `Logger.prototype.error` được gọi với chuỗi chứa `"ECONNREFUSED"`; case 2: KHÔNG gọi `onModuleInit`, `q1.emit("error", new Error("x"))` → assert **throw** (chứng minh listener là thứ chặn EventEmitter ném). Thêm vào mỗi processor spec 1 case: `processor.onWorkerError(new Error("boom"))` → `logger.error` (mock PinoLogger sẵn có trong spec) được gọi với `expect.objectContaining({ err: expect.any(Error) })`. Chạy `pnpm --filter @myflix/api test -- bull-error` và `pnpm --filter @myflix/transcoder test`. Expect: FAIL — `TS2307 Cannot find module './bull-error.logger'`; processor spec `TS2339 Property 'onWorkerError' does not exist`.
+- [ ] Tạo 2 `bull-error.logger.ts`, thêm provider vào 2 module, thêm `onWorkerError` vào 3 processor đúng như Interfaces.
+- [ ] Chạy lại 2 lệnh test. Expect: PASS.
+- [ ] Self-review checkpoint: `BullErrorLogger` chỉ gắn listener, không gọi lệnh Redis nào (không làm chậm bootstrap); `@OnWorkerEvent` import từ `@nestjs/bullmq` (không phải `bullmq`).
+- [ ] Chạy `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/transcoder test`, `pnpm --filter @myflix/api build`, `pnpm --filter @myflix/transcoder build`, và `cmd.lint`. Paste output vào PR.
+- [ ] Commit: `fix: log BullMQ queue/worker errors through Pino instead of raw console output (T14)`.
 
 ## Findings for the PR
 
