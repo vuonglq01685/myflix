@@ -2,12 +2,13 @@ name: kb-code
 
 # PR gate only. Publishing lives in kb-publish.yml.
 #
-# LOCAL DEVIATION from the strata-kb 1.2.0 template (re-apply after every
+# LOCAL DEVIATION from the strata-kb 1.4.0 template (re-apply after every
 # `kb init --kind dev`, which overwrites this file): the template also runs a
 # `publish` job on push to main/master. That job can never succeed —
-# intake.authorize() (strata-kb 1.2.0 and 1.3.0) accepts only OIDC tokens whose
-# `ref` starts with `refs/tags/kb-publish/`, so a branch-push token is refused
-# with HTTP 403. The publish path that works is the tag-triggered
+# the hub intake accepts only OIDC tokens whose `ref` starts with
+# `refs/tags/kb-publish/`, so a branch-push token is refused with HTTP 403,
+# and the intake (http://localhost:8321) is not reachable from GitHub-hosted
+# runners anyway. The publish path that works is the tag-triggered
 # kb-publish.yml, started by `kb publish` on a dev machine.
 
 on:
@@ -29,9 +30,9 @@ jobs:
       # setup-python cannot install on a self-hosted macOS runner (its Python
       # builds hard-code /Users/runner/hostedtoolcache), so use the host's
       # Python (Homebrew, >= 3.11 as strata-kb requires) in a throwaway venv.
-      - name: Install strata-kb 1.2.0
+      - name: Install strata-kb 1.4.0
         run: |
           python3 -m venv "$RUNNER_TEMP/kb-venv"
-          "$RUNNER_TEMP/kb-venv/bin/pip" install --quiet strata-kb==1.2.0
+          "$RUNNER_TEMP/kb-venv/bin/pip" install --quiet strata-kb==1.4.0
           echo "$RUNNER_TEMP/kb-venv/bin" >> "$GITHUB_PATH"
       - run: kb build
