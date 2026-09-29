@@ -1,12 +1,14 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { PinoLogger } from "nestjs-pino";
+import { storage, Store } from "nestjs-pino/storage";
 import { UnrecoverableError, type Job } from "bullmq";
 import {
   AssetStatus,
   JobStatus,
   QUEUE_TRANSCODE,
   computePercent,
+  resolveCorrelationId,
   type TranscodeJobData,
 } from "@myflix/shared";
 import { keys } from "@myflix/storage";
@@ -31,8 +33,6 @@ import { JobEventsPublisher } from "../events/job-events.publisher";
   concurrency: Number(process.env.TRANSCODE_CONCURRENCY ?? 1),
 })
 export class TranscodeProcessor extends WorkerHost {
-  private readonly logger = new Logger(TranscodeProcessor.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -40,53 +40,66 @@ export class TranscodeProcessor extends WorkerHost {
     private readonly keyframes: KeyframeVerifier,
     private readonly events: JobEventsPublisher,
     private readonly config: ConfigService,
+    private readonly logger: PinoLogger,
   ) {
     super();
   }
 
   async process(job: Job<TranscodeJobData>): Promise<void> {
-    const { assetId, jobId, correlationId } = job.data;
+    const { assetId, jobId } = job.data;
+    const correlationId = resolveCorrelationId(job.data.correlationId);
     const startedAt = Date.now();
-    this.logger.log({ correlationId, jobId, assetId }, "job started");
 
-    try {
-      await this.mark(jobId, assetId, JobStatus.RUNNING, AssetStatus.PROBING);
+    return storage.run(
+      new Store(PinoLogger.root.child({ correlationId })),
+      async () => {
+        this.logger.info({ jobId, assetId }, "job started");
 
-      // TODO(phase-1) in order:
-      //  1. download the source from myflix-source into SCRATCH_DIR
-      //  2. ffmpeg.probe -> persist duration, dimensions, frame rate, codecs
-      //  3. ENCODING: run buildLadderArgs, forwarding progress via
-      //     computePercent + events.progress
-      //  4. keyframes.verify across every rendition playlist; fail the job if
-      //     they drift (AC-010-3)
-      //  5. PACKAGING: sprite sheet, sprite VTT, preview clip
-      //  6. COMMITTING: storage.commitPrefix staging -> media, then write the
-      //     renditions rows
-      //  7. READY: set hls_master_key (the ck_ready_needs_master CHECK
-      //     rejects the update otherwise) and ready_at
-      void keys;
-      void computePercent;
-      throw new Error("TranscodeProcessor.process not implemented");
-    } catch (error) {
-      await this.fail(jobId, assetId, error);
-      // A permanent failure must not consume the two configured retries.
-      if (error instanceof FfmpegError && error.permanent) {
-        throw new UnrecoverableError(error.message);
-      }
-      throw error;
-    } finally {
-      // Staging debris is removed whether the job succeeded or not (R-5).
-      await this.storage
-        .deletePrefix(this.storage.buckets.staging, `${jobId}/`)
-        .catch((error: unknown) =>
-          this.logger.warn({ err: error, jobId }, "staging cleanup failed"),
-        );
+        try {
+          await this.mark(
+            jobId,
+            assetId,
+            JobStatus.RUNNING,
+            AssetStatus.PROBING,
+          );
 
-      this.logger.log(
-        { correlationId, jobId, assetId, elapsedMs: Date.now() - startedAt },
-        "job finished",
-      );
-    }
+          // TODO(phase-1) in order:
+          //  1. download the source from myflix-source into SCRATCH_DIR
+          //  2. ffmpeg.probe -> persist duration, dimensions, frame rate, codecs
+          //  3. ENCODING: run buildLadderArgs, forwarding progress via
+          //     computePercent + events.progress
+          //  4. keyframes.verify across every rendition playlist; fail the job if
+          //     they drift (AC-010-3)
+          //  5. PACKAGING: sprite sheet, sprite VTT, preview clip
+          //  6. COMMITTING: storage.commitPrefix staging -> media, then write the
+          //     renditions rows
+          //  7. READY: set hls_master_key (the ck_ready_needs_master CHECK
+          //     rejects the update otherwise) and ready_at
+          void keys;
+          void computePercent;
+          throw new Error("TranscodeProcessor.process not implemented");
+        } catch (error) {
+          await this.fail(jobId, assetId, error);
+          // A permanent failure must not consume the two configured retries.
+          if (error instanceof FfmpegError && error.permanent) {
+            throw new UnrecoverableError(error.message);
+          }
+          throw error;
+        } finally {
+          // Staging debris is removed whether the job succeeded or not (R-5).
+          await this.storage
+            .deletePrefix(this.storage.buckets.staging, `${jobId}/`)
+            .catch((error: unknown) =>
+              this.logger.warn({ err: error, jobId }, "staging cleanup failed"),
+            );
+
+          this.logger.info(
+            { jobId, assetId, elapsedMs: Date.now() - startedAt },
+            "job finished",
+          );
+        }
+      },
+    );
   }
 
   private async mark(
