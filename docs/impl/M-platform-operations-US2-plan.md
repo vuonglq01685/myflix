@@ -89,7 +89,12 @@ Depends on: task 1, task 4
   type GpuState = "ok" | "not_required" | "down" | "unreachable";
   interface HealthBody {
     status: "ok" | "degraded";
-    checks: { postgres: CheckState; redis: CheckState; minio: CheckState; gpu: GpuState };
+    checks: {
+      postgres: CheckState;
+      redis: CheckState;
+      minio: CheckState;
+      gpu: GpuState;
+    };
     version: string;
   }
   ```
@@ -170,7 +175,10 @@ Depends on: task 1, task 4
   function withTimeout<T>(fn: () => Promise<T>): Promise<T> {
     let timer!: NodeJS.Timeout;
     const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error("check timeout")), CHECK_TIMEOUT_MS);
+      timer = setTimeout(
+        () => reject(new Error("check timeout")),
+        CHECK_TIMEOUT_MS,
+      );
     });
     // .finally clear timer dù thắng hay thua race — timer không rò mỗi lần gọi (S5)
     return Promise.race([fn(), timeout]).finally(() => clearTimeout(timer));
@@ -250,7 +258,10 @@ Depends on: none
 
     async onModuleInit(): Promise<void> {
       await this.runCheck();
-      this.timer = setInterval(() => void this.runCheck(), GPU_CHECK_INTERVAL_MS);
+      this.timer = setInterval(
+        () => void this.runCheck(),
+        GPU_CHECK_INTERVAL_MS,
+      );
       this.timer.unref();
     }
     onModuleDestroy(): void {
@@ -284,11 +295,17 @@ Depends on: none
 
   @Controller("health")
   export class GpuProbeController {
-    constructor(private readonly config: ConfigService, private readonly probe: GpuProbeService) {}
+    constructor(
+      private readonly config: ConfigService,
+      private readonly probe: GpuProbeService,
+    ) {}
 
     @Get("gpu")
     check(): { gpu: GpuState } {
-      const encoder = this.config.get<string>("TRANSCODE_ENCODER", "h264_nvenc");
+      const encoder = this.config.get<string>(
+        "TRANSCODE_ENCODER",
+        "h264_nvenc",
+      );
       if (!encoder.endsWith("_nvenc")) return { gpu: "not_required" }; // Q3/D7 — nhánh CPU
 
       if (this.probe.read()) return { gpu: "ok" };
@@ -528,8 +545,8 @@ Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8
 
 ## Review record
 
-| Date | Round | Verdict | Reviewer | Open gaps |
-|---|---|---|---|---|
-| 2026-09-29 | 1 | BLOCKER x2, SUGGESTED x11 | plan-reviewer | B1, B2, S1–S11 applied by fix subagent; NOTE x6, NITS x6 recorded |
-| 2026-09-29 | 2 | BLOCKER x1, SUGGESTED x3 | plan-reviewer | R2-B1, S8(a), R2-S1, R2-S2 applied by fix subagent; NOTE x2, NITS x3 recorded |
-| 2026-09-29 | 3 | clean (0 BLOCKER, 0 SUGGESTED) | plan-reviewer | NOTE x1 (R3-N1 `as never` casts in Task 7 specs), NITS x1 recorded; carry NT3 (mission D9/D10 citation comments) into Task 2 implementation |
+| Date       | Round | Verdict                        | Reviewer      | Open gaps                                                                                                                                   |
+| ---------- | ----- | ------------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-29 | 1     | BLOCKER x2, SUGGESTED x11      | plan-reviewer | B1, B2, S1–S11 applied by fix subagent; NOTE x6, NITS x6 recorded                                                                           |
+| 2026-09-29 | 2     | BLOCKER x1, SUGGESTED x3       | plan-reviewer | R2-B1, S8(a), R2-S1, R2-S2 applied by fix subagent; NOTE x2, NITS x3 recorded                                                               |
+| 2026-09-29 | 3     | clean (0 BLOCKER, 0 SUGGESTED) | plan-reviewer | NOTE x1 (R3-N1 `as never` casts in Task 7 specs), NITS x1 recorded; carry NT3 (mission D9/D10 citation comments) into Task 2 implementation |
