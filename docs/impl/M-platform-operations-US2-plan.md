@@ -543,7 +543,7 @@ Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task
 - [x] `docker compose down`.
 - [x] Commit: `chore: final verification for M-platform-operations-US2 (health check + correlation ID)` (nếu có thay đổi cần commit — nếu không, bỏ qua bước commit và ghi trong PR rằng Task 9 chỉ verify).
 
-Review: ✅ verified (full run at Task 12 HEAD; T2/T5/T14 rerun at Task 13 HEAD; T1/T2/T5/T10/T14 + NFR rows 1 & 4 + api e2e live rerun at Task 14 HEAD — all PASS)
+Review: ✅ verified (full run at Task 12 HEAD; T2/T5/T14 rerun at Task 13 HEAD; T1/T2/T5/T10/T14 + NFR rows 1 & 4 + api e2e live rerun at Task 14 HEAD; verify-phase0 + T13 at c888784; T1/T2/T3/T5/T14 + api e2e + verify-phase0 rerun at Task 16 HEAD — all PASS)
 
 ## Amendment 1 (Dev-directed, 2026-09-29) — A3/Task 9 findings the Dev chose to apply
 
@@ -782,12 +782,14 @@ Depends on: task 1, task 3, task 10
 
 **Steps**
 
-- [ ] Failing test: thêm case storage (`abortSignal` được truyền) và 2 case api ở trên. Chạy `pnpm --filter @myflix/storage test`, `pnpm --filter @myflix/api test -- health.controller`. Expect: FAIL — storage: `TS2554 Expected 0 arguments, but got 1`; api: redis mock `reconnecting` vẫn "ok" (ping được gọi), `storage.ping` gọi không tham số.
-- [ ] Sửa `storage.client.ts`, build `pnpm --filter @myflix/storage build`, sửa `health.controller.ts` như Interfaces.
-- [ ] Chạy lại 2 lệnh test. Expect: PASS.
-- [ ] Self-review checkpoint: `ping()` không tham số vẫn chạy như cũ (caller nào khác? `grep -rn "\.ping(" apps packages --include=*.ts` chỉ health.controller); `probe` vẫn bọc `withTimeout` cho cả 3 check.
-- [ ] Chạy `pnpm --filter @myflix/storage test`, `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/api build`, `cmd.lint`. Paste output vào PR.
-- [ ] Commit: `fix(api): abort the MinIO health probe on timeout and fail redis fast when not ready (A5 r1)`.
+- [x] Failing test: thêm case storage (`abortSignal` được truyền) và 2 case api ở trên. Chạy `pnpm --filter @myflix/storage test`, `pnpm --filter @myflix/api test -- health.controller`. Expect: FAIL — storage: `TS2554 Expected 0 arguments, but got 1`; api: redis mock `reconnecting` vẫn "ok" (ping được gọi), `storage.ping` gọi không tham số.
+- [x] Sửa `storage.client.ts`, build `pnpm --filter @myflix/storage build`, sửa `health.controller.ts` như Interfaces.
+- [x] Chạy lại 2 lệnh test. Expect: PASS.
+- [x] Self-review checkpoint: `ping()` không tham số vẫn chạy như cũ (caller nào khác? `grep -rn "\.ping(" apps packages --include=*.ts` chỉ health.controller); `probe` vẫn bọc `withTimeout` cho cả 3 check.
+- [x] Chạy `pnpm --filter @myflix/storage test`, `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/api build`, `cmd.lint`. Paste output vào PR.
+- [x] Commit: `fix(api): abort the MinIO health probe on timeout and fail redis fast when not ready (A5 r1)`.
+
+Review: ✅ r2
 
 ## Findings for the PR
 
