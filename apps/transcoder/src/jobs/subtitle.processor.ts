@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { OnWorkerEvent, Processor, WorkerHost } from "@nestjs/bullmq";
 import { PinoLogger } from "nestjs-pino";
 import { storage, Store } from "nestjs-pino/storage";
 import type { Job } from "bullmq";
@@ -41,5 +41,10 @@ export class SubtitleProcessor extends WorkerHost {
         throw new Error("SubtitleProcessor.process not implemented");
       },
     );
+  }
+
+  @OnWorkerEvent("error")
+  onWorkerError(err: Error): void {
+    this.logger.error({ err }, "worker error"); // T14 / mission D10 — Worker không có listener "error" thì bullmq console.error() stack trace thô
   }
 }

@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { OnWorkerEvent, Processor, WorkerHost } from "@nestjs/bullmq";
 import { PinoLogger } from "nestjs-pino";
 import { storage, Store } from "nestjs-pino/storage";
 import type { Job } from "bullmq";
@@ -67,5 +67,10 @@ export class CleanupProcessor extends WorkerHost {
         return { deleted };
       },
     );
+  }
+
+  @OnWorkerEvent("error")
+  onWorkerError(err: Error): void {
+    this.logger.error({ err }, "worker error"); // T14 / mission D10 — Worker không có listener "error" thì bullmq console.error() stack trace thô
   }
 }

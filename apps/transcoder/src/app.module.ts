@@ -10,6 +10,7 @@ import {
 } from "@myflix/shared";
 
 import { validateEnv } from "./config/env";
+import { BullErrorLogger } from "./bull-error.logger";
 import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis.module";
@@ -45,6 +46,7 @@ import { CleanupProcessor } from "./jobs/cleanup.processor";
     HealthModule,
   ],
   providers: [
+    BullErrorLogger,
     FfmpegService,
     KeyframeVerifier,
     JobEventsPublisher,

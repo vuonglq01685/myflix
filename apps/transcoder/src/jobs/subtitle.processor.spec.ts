@@ -65,4 +65,17 @@ describe("SubtitleProcessor", () => {
     expect(message).toContain("job started");
     expect(firstLine.correlationId).toBe("t12-probe-0002");
   });
+
+  it("logs a Worker error event through Pino instead of a raw stack trace (T14)", () => {
+    const errorSpy = jest.spyOn(PinoLogger.prototype, "error");
+
+    processor.onWorkerError(new Error("boom"));
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      expect.any(String),
+    );
+
+    errorSpy.mockRestore();
+  });
 });
