@@ -20,7 +20,7 @@ async function resolveServerCorrelationId(): Promise<string | undefined> {
   if (typeof window !== "undefined") return undefined;
   try {
     const { headers } = await import("next/headers");
-    return (await headers()).get("x-correlation-id") ?? undefined;
+    return (await headers()).get("x-correlation-id") ?? undefined; // mission D9
   } catch {
     return undefined;
   }
@@ -42,7 +42,7 @@ export async function apiFetch<T>(
     credentials: "include",
     headers: {
       "content-type": "application/json",
-      ...(correlationId ? { "X-Correlation-Id": correlationId } : {}),
+      ...(correlationId ? { "X-Correlation-Id": correlationId } : {}), // mission D9
       ...init.headers,
     },
   });
