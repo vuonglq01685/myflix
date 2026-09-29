@@ -5,6 +5,7 @@ import { LoggerModule } from "nestjs-pino";
 import { QUEUE_CLEANUP, QUEUE_SUBTITLE, QUEUE_TRANSCODE } from "@myflix/shared";
 
 import { validateEnv } from "./config/env";
+import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis.module";
 import { StorageModule } from "./storage/storage.module";
@@ -36,6 +37,7 @@ import { CleanupProcessor } from "./jobs/cleanup.processor";
     PrismaModule,
     RedisModule,
     StorageModule,
+    HealthModule,
   ],
   providers: [
     FfmpegService,
