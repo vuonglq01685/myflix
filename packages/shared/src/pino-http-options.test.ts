@@ -33,6 +33,7 @@ test("genReqId generates a UUID v4 when the header is malformed", () => {
 
   assert.match(id, UUID_V4);
   assert.notEqual(id, "bad id");
+  assert.deepEqual(calls, [["X-Correlation-Id", id]]); // mission D9 — echo the generated id, never the raw header
 });
 
 test("genReqId takes the first value when the header arrives as an array", () => {
