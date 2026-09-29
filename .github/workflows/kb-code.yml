@@ -1,38 +1,32 @@
 name: kb-code
 
-# PR gate only. Publishing lives in kb-publish.yml.
+# PR gate only. Publishing is `kb publish --pr` on a dev machine (opens a PR
+# on the GitHub hub; see the kb-publish skill).
 #
-# LOCAL DEVIATION from the strata-kb 1.4.0 template (re-apply after every
+# LOCAL DEVIATION from the strata-kb 1.6.0 template (re-apply after every
 # `kb init --kind dev`, which overwrites this file): the template also runs a
-# `publish` job on push to main/master. That job can never succeed —
-# the hub intake accepts only OIDC tokens whose `ref` starts with
-# `refs/tags/kb-publish/`, so a branch-push token is refused with HTTP 403,
-# and the intake (http://localhost:8321) is not reachable from GitHub-hosted
-# runners anyway. The publish path that works is the tag-triggered
-# kb-publish.yml, started by `kb publish` on a dev machine.
+# `publish` job (`kb ci-publish`, OIDC → intake) on push to main/master. That
+# job cannot succeed here — the intake (`intake:` in .kb/config.yaml) is
+# http://localhost:8321, unreachable from GitHub-hosted runners — so it is
+# removed together with its push trigger and concurrency group.
 
 on:
   pull_request:
   workflow_dispatch:
 
 jobs:
-  # Validate only, never publishes. Catches a malformed -svc edit or a
-  # `pending` section committed before review — before merge, not after.
+  # Validate only, never publishes. `kb build` regenerates -code from the
+  # merge ref first (it is never committed), so this validates what the
+  # merge would publish — and catches a malformed -svc edit or a `pending`
+  # section committed before review, before merge, not after.
   validate:
-    # LOCAL DEVIATION (re-apply after `kb init`): self-hosted runner, not
-    # ubuntu-latest. GitHub-hosted minutes are blocked on this private repo's
-    # account billing; the self-hosted runner uses none.
-    runs-on: [self-hosted, strata-intake]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      # setup-python cannot install on a self-hosted macOS runner (its Python
-      # builds hard-code /Users/runner/hostedtoolcache), so use the host's
-      # Python (Homebrew, >= 3.11 as strata-kb requires) in a throwaway venv.
-      - name: Install strata-kb 1.4.0
-        run: |
-          python3 -m venv "$RUNNER_TEMP/kb-venv"
-          "$RUNNER_TEMP/kb-venv/bin/pip" install --quiet strata-kb==1.4.0
-          echo "$RUNNER_TEMP/kb-venv/bin" >> "$GITHUB_PATH"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install strata-kb==1.6.0
       - run: kb build
