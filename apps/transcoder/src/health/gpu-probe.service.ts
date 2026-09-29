@@ -14,6 +14,7 @@ const execFileAsync = promisify(execFile); // node:child_process + node:util —
 export class GpuProbeService implements OnModuleInit, OnModuleDestroy {
   private lastOk = false;
   private lastCheckedAt = 0;
+  private inFlight = false;
   private timer?: NodeJS.Timeout;
 
   async onModuleInit(): Promise<void> {
@@ -26,6 +27,8 @@ export class GpuProbeService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async runCheck(): Promise<void> {
+    if (this.inFlight) return; // A3 S2 — một nvidia-smi treo (D-state) không bị SIGKILL, không cho vòng 10s dồn tiến trình
+    this.inFlight = true;
     try {
       // ponytail: timeout cố định 5s để một lần nvidia-smi treo bị kill thay vì
       // dồn tiến trình con qua mỗi vòng 10s; nếu cần dài hơn thì đưa ra env var.
@@ -35,6 +38,7 @@ export class GpuProbeService implements OnModuleInit, OnModuleDestroy {
       this.lastOk = false;
     } finally {
       this.lastCheckedAt = Date.now();
+      this.inFlight = false;
     }
   }
 
