@@ -3,9 +3,9 @@ import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
-import { randomUUID } from "node:crypto";
 
 import { validateEnv } from "./config/env";
+import { PINO_HTTP_OPTIONS } from "./logger.options";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 import { QueueModule } from "./queue/queue.module";
@@ -24,15 +24,7 @@ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-    LoggerModule.forRoot({
-      pinoHttp: {
-        // One correlation id per request, echoed in every error body (HLD §8.2).
-        genReqId: (req) =>
-          (req.headers["x-correlation-id"] as string) ?? randomUUID(),
-        customProps: (req) => ({ correlationId: req.id }),
-        redact: ["req.headers.authorization", "req.headers.cookie"],
-      },
-    }),
+    LoggerModule.forRoot({ pinoHttp: PINO_HTTP_OPTIONS }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
 
     PrismaModule,
