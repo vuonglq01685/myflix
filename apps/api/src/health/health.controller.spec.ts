@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import type { Response } from "express";
 import type Redis from "ioredis";
 import { HealthController } from "./health.controller";
@@ -287,6 +288,78 @@ describe("HealthController", () => {
       );
       expect(storageCall).toBeGreaterThanOrEqual(0);
       expect(timeoutSpy.mock.calls[storageCall]).toEqual([1_000]); // mission D8 — the storage signal, not the gpu one
+    });
+  });
+
+  describe("A5 r2 SUGGESTED 3 — log a warning on the ok -> fail edge", () => {
+    const redisWith = (ping: jest.Mock) =>
+      ({ status: "ready", ping }) as never as Redis;
+    const build = (redis: Redis) =>
+      new HealthController(healthyPrisma(), redis, healthyStorage());
+
+    it("warns once naming the check and the cause, while the body stays free of the cause", async () => {
+      mockGpuOk();
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+      const redis = redisWith(jest.fn().mockRejectedValue(new Error("boom")));
+
+      const body = await build(redis).check(mockRes());
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      const line = String(warn.mock.calls[0]?.[0]);
+      expect(line).toContain("redis");
+      expect(line).toContain("boom");
+      expect(JSON.stringify(body)).not.toContain("boom");
+    });
+
+    it("stays quiet while the same check keeps failing", async () => {
+      mockGpuOk();
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+      const controller = build(
+        redisWith(jest.fn().mockRejectedValue(new Error("boom"))),
+      );
+
+      await controller.check(mockRes());
+      await controller.check(mockRes());
+
+      expect(warn).toHaveBeenCalledTimes(1);
+    });
+
+    it("warns again when a check fails, recovers, then fails again", async () => {
+      mockGpuOk();
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+      const ping = jest
+        .fn()
+        .mockRejectedValueOnce(new Error("boom"))
+        .mockResolvedValueOnce("PONG")
+        .mockRejectedValueOnce(new Error("boom"));
+      const controller = build(redisWith(ping));
+
+      await controller.check(mockRes());
+      await controller.check(mockRes());
+      await controller.check(mockRes());
+
+      expect(warn).toHaveBeenCalledTimes(2);
+    });
+
+    it("warns naming gpu when the transcoder answers 503", async () => {
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+      jest
+        .spyOn(global, "fetch")
+        .mockResolvedValue({ status: 503, json: async () => ({}) } as never);
+
+      await build(healthyRedis()).check(mockRes());
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain("gpu");
+    });
+
+    it("does not warn when everything is healthy", async () => {
+      mockGpuOk();
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+
+      await build(healthyRedis()).check(mockRes());
+
+      expect(warn).not.toHaveBeenCalled();
     });
   });
 

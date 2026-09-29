@@ -791,6 +791,37 @@ Depends on: task 1, task 3, task 10
 
 Review: ✅ r2
 
+## Amendment 5 (Dev-directed, 2026-09-29) — A5 merge-risk r2 (máy GPU): SUGGESTED 3 — probe nuốt lỗi, 503 không để lại dòng log nào
+
+> `docs/impl/M-platform-operations-US2-review/merge-risk.md` (r2, HEAD 19aa984): `Blocking: No`, SUGGESTED x3. Dev chọn: S3 sửa (Task 17); S1 (health 503 khi GPU/transcoder chết chặn nginx/web (re)start, `retries` 3) = mission D8/ticket A1 → OPEN(SA), trùng SUGGESTED 2 của r1, không sửa code; S2 (`PinoLogger.root` chỉ có khi transcoder là HTTP app) = design §5 "3 processor — `storage.run` + `PinoLogger.root.child`" (D11) và `main.ts` bắt buộc là HTTP app vì D7 → finding, không sửa. Task 17 lệch khỏi chú thích `design.md:149` ("lỗi gốc bị nuốt tại đây — AC4") ở phạm vi log phía server; AC4 chỉ ràng buộc **body**, body/status không đổi.
+
+## Task 17: AC4/NFR quan sát — `api` + `transcoder`: log `warn` khi một phép kiểm health chuyển ok → fail (A5 r2 SUGGESTED 3)
+
+Depends on: task 3, task 4, task 10, task 11, task 16
+
+**Files**
+
+- Modify: `apps/api/src/health/health.controller.ts`
+- Modify: `apps/api/src/health/health.controller.spec.ts`
+- Modify: `apps/transcoder/src/health/gpu-probe.service.ts`
+- Modify: `apps/transcoder/src/health/gpu-probe.service.spec.ts`
+
+**Interfaces**
+
+- Consumes: `Logger` của `@nestjs/common` (pattern đã có: `apps/api/src/queue/bull-error.logger.ts` — `new Logger("BullMQ")`, đi qua nestjs-pino nên có `correlationId` + redact D10); `probe`/`probeGpu`/`withTimeout` (Task 3/10/16); `GpuProbeService.runCheck` (Task 4/11).
+- Produces (`api`): `probe(fn, onError: (err: unknown) => void)` và `probeGpu(onError)` gọi `onError(err)` trong `catch` trước khi trả `"fail"`/`"unreachable"`; `probeGpu` gọi `onError(new Error("transcoder reported gpu down"))` trước khi trả `"down"`. `HealthController`: `private readonly logger = new Logger("Health")`, `private readonly failing = new Set<string>()`; `check()` truyền `(err) => this.warnOnce("<name>", err)` cho từng phép kiểm; sau `Promise.all`, tên nào có trạng thái `"ok"`/`"not_required"` → `failing.delete(name)`. `warnOnce(name, err)`: đã có trong `failing` → bỏ qua; ngược lại `failing.add(name)` rồi `logger.warn(\`${name} check failed: ${err instanceof Error ? err.message : String(err)}\`)`. Chỉ ghi `message` — không ghi object lỗi, không ghi env/URL kết nối. Body, status code, `CheckState`/`GpuState` không đổi.
+- Produces (`transcoder`): `GpuProbeService`: `private readonly logger = new Logger("GpuProbe")`; trong `catch (err)` của `runCheck`: nếu lần trước `lastOk === true` HOẶC đây là lần kiểm đầu (`lastCheckedAt === 0`) → `logger.warn(\`nvidia-smi failed: ${message}\`)` với `message` = `err.message` (execFile đã gộp exit code/stderr vào message). Thành công sau thất bại → không log (ponytail: chỉ log cạnh xuống; thêm log hồi phục khi có yêu cầu).
+
+**Steps**
+
+- [x] Failing test `api` (`health.controller.spec.ts`, `jest.spyOn(Logger.prototype, "warn")`): (a) redis `ping` reject `new Error("boom")` → `warn` gọi 1 lần với chuỗi chứa `"redis"` và `"boom"`, body vẫn không chứa `"boom"`; (b) gọi `check()` 2 lần liên tiếp cùng lỗi → `warn` tổng cộng 1 lần; (c) lỗi → khỏi → lỗi lại → `warn` 2 lần; (d) fetch trả `status: 503` → `warn` chứa `"gpu"`; (e) mọi thứ khỏe → `warn` 0 lần. Chạy `pnpm --filter @myflix/api test -- health.controller`. Expect: FAIL — `warn` chưa được gọi.
+- [x] Failing test `transcoder` (`gpu-probe.service.spec.ts`, cùng harness `jest.mock("node:child_process")` hiện có, `jest.spyOn(Logger.prototype, "warn")`): (a) lần kiểm đầu fail → `warn` 1 lần chứa message lỗi; (b) fail 2 lần liên tiếp → `warn` 1 lần; (c) ok → fail → `warn` 1 lần. Chạy `pnpm --filter @myflix/transcoder test -- gpu-probe.service`. Expect: FAIL.
+- [x] Sửa 2 file nguồn như Interfaces.
+- [x] Chạy lại 2 lệnh test. Expect: PASS.
+- [x] Self-review checkpoint: body `check()` không đổi hình dạng (các test cũ pass nguyên, không sửa test cũ); không log object lỗi; `probe` vẫn bọc `withTimeout`.
+- [x] Chạy `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/transcoder test`, `pnpm --filter @myflix/api build`, `pnpm --filter @myflix/transcoder build`, `npx eslint apps/api/src/health apps/transcoder/src/health`, `npx prettier --check` trên 4 file. Paste output.
+- [x] Commit (chỉ 4 file trên + file plan này, `git add` từng đường dẫn): `fix: log a warning when a health check turns from ok to fail (A5 r2)`.
+
 ## Findings for the PR
 
 1. `packages/shared/src/dto/ingest.ts` — `TranscodeJobData.correlationId` đã tồn tại sẵn (bắt buộc, `string`) từ trước ticket này — không sửa DTO này, chỉ 3 processor tiêu thụ nó thay đổi.

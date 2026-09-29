@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import {
   Injectable,
+  Logger,
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
@@ -12,6 +13,7 @@ const execFileAsync = promisify(execFile); // node:child_process + node:util —
 
 @Injectable()
 export class GpuProbeService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger("GpuProbe");
   private lastOk = false;
   private lastCheckedAt = 0;
   private inFlight = false;
@@ -34,7 +36,14 @@ export class GpuProbeService implements OnModuleInit, OnModuleDestroy {
       // dồn tiến trình con qua mỗi vòng 10s; nếu cần dài hơn thì đưa ra env var.
       await execFileAsync("nvidia-smi", ["-L"], { timeout: 5_000 });
       this.lastOk = true;
-    } catch {
+    } catch (err) {
+      // A5 r2 — chỉ log cạnh xuống (lần kiểm đầu hoặc ok → fail); execFile gộp exit code/stderr vào message
+      // ponytail: không log hồi phục; thêm khi có yêu cầu
+      if (this.lastOk || this.lastCheckedAt === 0) {
+        this.logger.warn(
+          `nvidia-smi failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
       this.lastOk = false;
     } finally {
       this.lastCheckedAt = Date.now();

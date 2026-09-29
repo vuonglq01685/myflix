@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { Logger } from "@nestjs/common";
 import { GpuProbeService } from "./gpu-probe.service";
 
 const GPU_STALE_MS = 30_000; // mission D7, đã có — mirrors gpu-probe.service.ts (private module constant, cannot import)
@@ -79,6 +80,45 @@ describe("GpuProbeService", () => {
     expect(mockExecFile).toHaveBeenCalledTimes(2);
     latestCallback()(null, "", "");
     await third;
+  });
+
+  describe("A5 r2 SUGGESTED 3 — log a warning on the ok -> fail edge", () => {
+    const run = async (service: GpuProbeService, err: Error | null) => {
+      const promise = callRunCheck(service);
+      latestCallback()(err, "", "");
+      await promise;
+    };
+
+    it("warns with the error message when the very first check fails", async () => {
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+
+      await run(service, new Error("nvidia-smi: not found"));
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain(
+        "nvidia-smi: not found",
+      );
+    });
+
+    it("stays quiet on consecutive failures", async () => {
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+
+      await run(service, new Error("boom"));
+      await run(service, new Error("boom"));
+
+      expect(warn).toHaveBeenCalledTimes(1);
+    });
+
+    it("warns when a check that was ok turns to fail", async () => {
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+
+      await run(service, null);
+      expect(warn).not.toHaveBeenCalled();
+      await run(service, new Error("gpu fell off the bus"));
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain("gpu fell off the bus");
+    });
   });
 
   it("read() is false once GPU_STALE_MS has elapsed since the last successful check", async () => {

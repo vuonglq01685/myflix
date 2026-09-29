@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Res } from "@nestjs/common";
+import { Controller, Get, Inject, Logger, Res } from "@nestjs/common";
 import type { Response } from "express";
 import type Redis from "ioredis";
 import { Public } from "../common/decorators";
@@ -22,22 +22,46 @@ export class HealthController {
     private readonly storage: StorageService,
   ) {}
 
+  // A5 r2 — cạnh ok → fail để lại đúng 1 dòng log; body/status không đổi (AC4 chỉ ràng buộc body)
+  private readonly logger = new Logger("Health");
+  private readonly failing = new Set<string>();
+
+  private warnOnce(name: string, err: unknown): void {
+    if (this.failing.has(name)) return;
+    this.failing.add(name);
+    // chỉ ghi message — không object lỗi, không env/URL kết nối
+    this.logger.warn(
+      `${name} check failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
   @Public()
   @Get()
   async check(@Res({ passthrough: true }) res: Response) {
     const [postgres, redis, minio, gpu] = await Promise.all([
-      probe(() => this.prisma.$queryRaw`SELECT 1`),
-      probe(() =>
-        // A5 r1 — không xếp PING vào offline queue của ioredis khi mất kết nối
-        this.redis.status === "ready"
-          ? this.redis.ping()
-          : Promise.reject(new Error("redis not ready")),
+      probe(
+        () => this.prisma.$queryRaw`SELECT 1`,
+        (err) => this.warnOnce("postgres", err),
       ),
-      probe(() => this.storage.ping(AbortSignal.timeout(CHECK_TIMEOUT_MS))), // mission D8
-      probeGpu(),
+      probe(
+        () =>
+          // A5 r1 — không xếp PING vào offline queue của ioredis khi mất kết nối
+          this.redis.status === "ready"
+            ? this.redis.ping()
+            : Promise.reject(new Error("redis not ready")),
+        (err) => this.warnOnce("redis", err),
+      ),
+      probe(
+        () => this.storage.ping(AbortSignal.timeout(CHECK_TIMEOUT_MS)), // mission D8
+        (err) => this.warnOnce("minio", err),
+      ),
+      probeGpu((err) => this.warnOnce("gpu", err)),
     ]);
 
     const checks = { postgres, redis, minio, gpu };
+    for (const [name, state] of Object.entries(checks)) {
+      if (state === "ok" || state === "not_required") this.failing.delete(name);
+    }
     const healthy =
       checks.postgres === "ok" &&
       checks.redis === "ok" &&
@@ -53,7 +77,7 @@ export class HealthController {
   }
 }
 
-async function probeGpu(): Promise<GpuState> {
+async function probeGpu(onError: (err: unknown) => void): Promise<GpuState> {
   try {
     // Cả fetch() lẫn res.json() chạy bên trong withTimeout(), nên body treo
     // sau khi header đã về cũng bị tính vào CHECK_TIMEOUT_MS (S5).
@@ -62,12 +86,16 @@ async function probeGpu(): Promise<GpuState> {
       const res = await fetch(TRANSCODER_GPU_URL, {
         signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
       });
-      if (res.status === 503) return "down";
+      if (res.status === 503) {
+        onError(new Error("transcoder reported gpu down"));
+        return "down";
+      }
       const body: unknown = await res.json();
       const gpu = (body as { gpu?: unknown } | null)?.gpu;
       return gpu === "ok" || gpu === "not_required" ? gpu : "unreachable";
     });
-  } catch {
+  } catch (err) {
+    onError(err);
     return "unreachable"; // từ chối kết nối HOẶC quá 1.000 ms — A6, Q11
   }
 }
@@ -84,11 +112,15 @@ function withTimeout<T>(fn: () => Promise<T>): Promise<T> {
   return Promise.race([fn(), timeout]).finally(() => clearTimeout(timer));
 }
 
-async function probe(fn: () => Promise<unknown>): Promise<CheckState> {
+async function probe(
+  fn: () => Promise<unknown>,
+  onError: (err: unknown) => void,
+): Promise<CheckState> {
   try {
     await withTimeout(fn);
     return "ok";
-  } catch {
-    return "fail"; // lỗi gốc bị nuốt tại đây — AC4
+  } catch (err) {
+    onError(err); // chỉ ra log phía server; body vẫn không mang lỗi gốc — AC4
+    return "fail";
   }
 }
