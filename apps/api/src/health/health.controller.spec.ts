@@ -13,8 +13,12 @@ const healthyPrisma = () =>
   ({
     $queryRaw: jest.fn().mockResolvedValue([{ "?column?": 1 }]),
   }) as never as PrismaService;
+// status: "ready" mở rộng fixture cho A5 r1 — redis.status gate trước khi ping()
 const healthyRedis = () =>
-  ({ ping: jest.fn().mockResolvedValue("PONG") }) as never as Redis;
+  ({
+    status: "ready",
+    ping: jest.fn().mockResolvedValue("PONG"),
+  }) as never as Redis;
 const healthyStorage = () =>
   ({ ping: jest.fn().mockResolvedValue(undefined) }) as never as StorageService;
 
@@ -239,6 +243,43 @@ describe("HealthController", () => {
       );
       const signal = fetchMock.mock.calls[0]?.[1]?.signal as AbortSignal;
       expect(signal.aborted).toBe(false);
+    });
+  });
+
+  describe("A5 r1 SUGGESTED 3 — abort the minio probe on timeout, fail redis fast when not ready", () => {
+    it("fails redis fast without calling ping when status is not ready", async () => {
+      mockGpuOk();
+      const ping = jest.fn();
+      const redis = { status: "reconnecting", ping } as never as Redis;
+      const controller = new HealthController(
+        healthyPrisma(),
+        redis,
+        healthyStorage(),
+      );
+      const res = mockRes();
+
+      const body = await controller.check(res);
+
+      expect(res.status).toHaveBeenCalledWith(503);
+      expect(body.checks.redis).toBe("fail");
+      expect(ping).not.toHaveBeenCalled(); // A5 r1 — không xếp PING vào offline queue của ioredis khi mất kết nối
+    });
+
+    it("aborts the storage.ping probe with an AbortSignal tied to CHECK_TIMEOUT_MS", async () => {
+      mockGpuOk();
+      const timeoutSpy = jest.spyOn(AbortSignal, "timeout");
+      const storage = healthyStorage();
+      const controller = new HealthController(
+        healthyPrisma(),
+        healthyRedis(),
+        storage,
+      );
+      const res = mockRes();
+
+      await controller.check(res);
+
+      expect(timeoutSpy).toHaveBeenCalledWith(1_000); // mission D8
+      expect(storage.ping).toHaveBeenCalledWith(expect.any(AbortSignal));
     });
   });
 
