@@ -222,6 +222,7 @@ describe("HealthController", () => {
         status: 200,
         json: async () => ({ gpu: "ok" }),
       } as never);
+      const timeoutSpy = jest.spyOn(AbortSignal, "timeout");
       const controller = new HealthController(
         healthyPrisma(),
         healthyRedis(),
@@ -231,6 +232,7 @@ describe("HealthController", () => {
 
       await controller.check(res);
 
+      expect(timeoutSpy).toHaveBeenCalledWith(1_000); // mission D8 — abort tied to CHECK_TIMEOUT_MS
       expect(fetchMock).toHaveBeenCalledWith(
         TRANSCODER_GPU_URL,
         expect.objectContaining({ signal: expect.any(AbortSignal) }),
