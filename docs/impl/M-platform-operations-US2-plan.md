@@ -509,7 +509,7 @@ Review: ✅ r2
 
 ## Task 9: Closing — full verification
 
-Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task 10, task 11, task 12, task 13
+Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task 10, task 11, task 12, task 13, task 14
 
 **Files**
 
@@ -695,6 +695,40 @@ Depends on: task 4, task 7, task 12
 - [x] Commit: `fix: log BullMQ queue/worker errors through Pino instead of raw console output (T14)`.
 
 Review: ✅ r1 (S-1 wiring-metadata tests declined by plan owner — live T14 rerun is the wiring proof, recorded in PR Findings; S-2 detect_changes run via CLI after the git/Xcode workaround)
+
+## Amendment 3 (Dev-directed, 2026-09-29) — A4 r1 S2: log request của `transcoder` thiếu `correlationId`
+
+> A4 r1 (`docs/impl/M-platform-operations-US2-review/a4-r1.md`): NFR hàng 4 của ticket ("100% dòng log ghi trong ngữ cảnh một request mang trường `correlationId`") bị chính nhánh này vi phạm — Task 4 mở HTTP listener ở `transcoder`, `LoggerModule.forRoot({ pinoHttp: { redact } })` (Task 7) không có `genReqId`/`customAttributeKeys`, nên mỗi dòng access log `GET /health/gpu` không có `correlationId`. Dev chọn apply theo recommend: đưa `genReqId` + `PINO_HTTP_OPTIONS` (Task 6) vào `packages/shared` để cả hai app dùng chung; `api` re-export nên spec Task 6 giữ nguyên. KHÔNG chuyển tiếp id từ `probeGpu` sang `transcoder` (không AC nào yêu cầu api→transcoder; YAGNI — ghi vào Findings). A4 r1 S1 (T10 chặt hơn AC7: giá trị bị từ chối vẫn nằm ở `req.headers` của access log) → OPEN(BA), không sửa code; A4 r1 S3 (p95 < 200 ms) → đo ở Task 9 rerun, không có code.
+
+## Task 14: NFR hàng 4 — `packages/shared`: `pino-http-options.ts` dùng chung; `transcoder` gắn `correlationId` vào access log
+
+Depends on: task 2, task 4, task 6, task 7, task 13
+
+**Files**
+
+- Create: `packages/shared/src/pino-http-options.ts`
+- Create: `packages/shared/src/pino-http-options.test.ts`
+- Modify: `packages/shared/src/index.ts` (thêm `export * from "./pino-http-options";`)
+- Modify: `apps/api/src/logger.options.ts` (thành re-export)
+- Modify: `apps/transcoder/src/app.module.ts` (`LoggerModule.forRoot({ pinoHttp: PINO_HTTP_OPTIONS })`)
+
+**Interfaces**
+
+- Consumes: `resolveCorrelationId`, `LOG_REDACT_CONFIG` (Task 2, cùng package).
+- Produces: `packages/shared/src/pino-http-options.ts` = nội dung hiện tại của `apps/api/src/logger.options.ts` chuyển nguyên văn (cả comment citation `// mission D9`, `// mission D9 nguyên văn`, `// NB1 …`, `// mission D10`), chỉ đổi import thành `import { resolveCorrelationId } from "./correlation-id"; import { LOG_REDACT_CONFIG } from "./log-redact";` (giữ `import type { IncomingMessage, ServerResponse } from "node:http";` — chỉ type, không kéo runtime). Export `genReqId`, `PINO_HTTP_OPTIONS` y hệt.
+- `apps/api/src/logger.options.ts` chỉ còn: `export { genReqId, PINO_HTTP_OPTIONS } from "@myflix/shared"; // Task 14 — nguồn duy nhất, dùng chung với transcoder` — `app.module.ts` và `logger.options.spec.ts` của `api` KHÔNG đổi.
+- `apps/transcoder/src/app.module.ts`: `LoggerModule.forRoot({ pinoHttp: PINO_HTTP_OPTIONS })` thay cho `{ pinoHttp: { redact: LOG_REDACT_CONFIG } }` (`PINO_HTTP_OPTIONS` đã chứa `redact: LOG_REDACT_CONFIG`); bỏ import `LOG_REDACT_CONFIG` nếu không còn dùng. Hệ quả: mỗi access log `GET /health/gpu` mang `correlationId` (client không gửi → sinh UUID v4, D9), header response `X-Correlation-Id` được echo.
+- Subpath `./correlation-id` (Edge, `web`) không đổi. Không thêm dependency (`pino-http` không cần import — `PINO_HTTP_OPTIONS` là object thuần).
+
+**Steps**
+
+- [ ] Failing test: viết `packages/shared/src/pino-http-options.test.ts` (`node:test`): (1) `genReqId({ headers: { "x-correlation-id": "t7-probe-0001" } } as never, res)` với `res = { setHeader: (k, v) => calls.push([k, v]) }` → trả `"t7-probe-0001"` và `calls` deep-equal `[["X-Correlation-Id", "t7-probe-0001"]]`; (2) header sai định dạng (`"bad id"`) → trả chuỗi khớp regex UUID v4 (copy từ `correlation-id.test.ts`) và khác `"bad id"`; (3) header mảng `["a1", "a2"]` → trả `"a1"`; (4) `PINO_HTTP_OPTIONS.customAttributeKeys` deep-equal `{ reqId: "correlationId" }`, `quietReqLogger === true`, `redact === LOG_REDACT_CONFIG`. Chạy `pnpm --filter @myflix/shared test`. Expect: FAIL — `TS2307: Cannot find module './pino-http-options'`.
+- [ ] Tạo `pino-http-options.ts`, thêm export vào `index.ts`, đổi `apps/api/src/logger.options.ts` thành re-export, đổi `LoggerModule.forRoot` của `transcoder` như Interfaces.
+- [ ] Chạy lại `pnpm --filter @myflix/shared test`. Expect: PASS (25 test, +4).
+- [ ] Chạy `pnpm --filter @myflix/api test` (spec `logger.options.spec.ts` của Task 6 vẫn xanh qua re-export) và `pnpm --filter @myflix/transcoder test`. Expect: PASS, không đổi số test.
+- [ ] Self-review checkpoint: `git diff apps/api/src/logger.options.spec.ts apps/api/src/app.module.ts` rỗng; `grep -rn "logger.options" apps/transcoder/src` rỗng (transcoder import từ `@myflix/shared`).
+- [ ] Chạy `pnpm --filter @myflix/shared build`, `pnpm --filter @myflix/api build`, `pnpm --filter @myflix/transcoder build`, `pnpm --filter web build` (subpath Edge không bị ảnh hưởng) và `cmd.lint`. Paste output vào PR.
+- [ ] Commit: `refactor(shared): share pino-http correlation options; transcoder access log carries correlationId (A4 S2)`.
 
 ## Findings for the PR
 
