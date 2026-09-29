@@ -94,7 +94,7 @@ sections:
     l3: 751
 - id: hist.api
   title: api — ticket history
-  summary: 'Tickets that touched api: 1 recorded.'
+  summary: 'Tickets that touched api: 2 recorded.'
   status: summarized
   file: history
   tokens:
@@ -102,7 +102,7 @@ sections:
     l3: 86
 - id: hist.web
   title: web — ticket history
-  summary: 'Tickets that touched web: 1 recorded.'
+  summary: 'Tickets that touched web: 2 recorded.'
   status: summarized
   file: history
   tokens:
@@ -110,7 +110,7 @@ sections:
     l3: 86
 - id: hist.transcoder
   title: transcoder — ticket history
-  summary: 'Tickets that touched transcoder: 1 recorded.'
+  summary: 'Tickets that touched transcoder: 2 recorded.'
   status: summarized
   file: history
   tokens:

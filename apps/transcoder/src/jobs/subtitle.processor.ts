@@ -1,13 +1,15 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Logger } from "@nestjs/common";
+import { OnWorkerEvent, Processor, WorkerHost } from "@nestjs/bullmq";
+import { PinoLogger } from "nestjs-pino";
+import { storage, Store } from "nestjs-pino/storage";
 import type { Job } from "bullmq";
-import { QUEUE_SUBTITLE } from "@myflix/shared";
+import { QUEUE_SUBTITLE, resolveCorrelationId } from "@myflix/shared";
 
 export interface SubtitleJobData {
   assetId: string;
   subtitleTrackId: string;
   sourceKey: string;
   lang: string;
+  correlationId?: string;
 }
 
 /**
@@ -20,15 +22,29 @@ export interface SubtitleJobData {
  */
 @Processor(QUEUE_SUBTITLE, { concurrency: 2 })
 export class SubtitleProcessor extends WorkerHost {
-  private readonly logger = new Logger(SubtitleProcessor.name);
+  constructor(private readonly logger: PinoLogger) {
+    super();
+  }
 
   async process(job: Job<SubtitleJobData>): Promise<void> {
-    void job;
-    // TODO(phase-5): Vietnamese subtitles are usually Windows-1258 or
-    // UTF-16LE, so encoding detection comes first: BOM, then strict UTF-8,
-    // then chardet at 0.7 confidence, then the windows-1252/1258 correction.
-    // Refuse rather than guess, and warn when a `vi` track ends up with zero
-    // characters in U+1EA0-U+1EF9.
-    throw new Error("SubtitleProcessor.process not implemented");
+    const correlationId = resolveCorrelationId(job.data.correlationId);
+
+    return storage.run(
+      new Store(PinoLogger.root.child({ correlationId })),
+      async () => {
+        this.logger.info({ assetId: job.data.assetId }, "job started");
+        // TODO(phase-5): Vietnamese subtitles are usually Windows-1258 or
+        // UTF-16LE, so encoding detection comes first: BOM, then strict UTF-8,
+        // then chardet at 0.7 confidence, then the windows-1252/1258 correction.
+        // Refuse rather than guess, and warn when a `vi` track ends up with zero
+        // characters in U+1EA0-U+1EF9.
+        throw new Error("SubtitleProcessor.process not implemented");
+      },
+    );
+  }
+
+  @OnWorkerEvent("error")
+  onWorkerError(err: Error): void {
+    this.logger.error({ err }, "worker error"); // T14 / mission D10 — Worker không có listener "error" thì bullmq console.error() stack trace thô
   }
 }

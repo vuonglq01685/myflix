@@ -2,9 +2,16 @@ import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { LoggerModule } from "nestjs-pino";
-import { QUEUE_CLEANUP, QUEUE_SUBTITLE, QUEUE_TRANSCODE } from "@myflix/shared";
+import {
+  PINO_HTTP_OPTIONS,
+  QUEUE_CLEANUP,
+  QUEUE_SUBTITLE,
+  QUEUE_TRANSCODE,
+} from "@myflix/shared";
 
 import { validateEnv } from "./config/env";
+import { BullErrorLogger } from "./bull-error.logger";
+import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis.module";
 import { StorageModule } from "./storage/storage.module";
@@ -18,7 +25,7 @@ import { CleanupProcessor } from "./jobs/cleanup.processor";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-    LoggerModule.forRoot(),
+    LoggerModule.forRoot({ pinoHttp: PINO_HTTP_OPTIONS }),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -36,8 +43,10 @@ import { CleanupProcessor } from "./jobs/cleanup.processor";
     PrismaModule,
     RedisModule,
     StorageModule,
+    HealthModule,
   ],
   providers: [
+    BullErrorLogger,
     FfmpegService,
     KeyframeVerifier,
     JobEventsPublisher,

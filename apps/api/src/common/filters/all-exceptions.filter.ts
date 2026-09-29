@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { ApiErrorBody, ERROR_HTTP_STATUS, ErrorCode } from "@myflix/shared";
+import { genReqId } from "../../logger.options";
 
 /** Thrown by services when a documented business rule blocks the request. */
 export class BusinessError extends HttpException {
@@ -29,6 +30,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const req = ctx.getRequest<Request & { id?: string }>();
     const res = ctx.getResponse<Response>();
+
+    // R3-S4/R4-S3: body-parser errors call next(err), bypassing pino-http's
+    // middleware, so req.id is still empty here — fall back to genReqId so
+    // every status code (AC6) gets an X-Correlation-Id header.
+    if (!req.id) req.id = genReqId(req, res);
 
     const status =
       exception instanceof HttpException

@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+// Subpath, not the "@myflix/shared" barrel: the barrel pulls in @node-rs/argon2, which cannot load on the Edge runtime.
+import { resolveCorrelationId } from "@myflix/shared/correlation-id";
 import { logger } from "./lib/logger";
 
 /**
@@ -8,7 +10,15 @@ import { logger } from "./lib/logger";
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  logger.info({ msg: "request", method: request.method, path: pathname });
+  const correlationId = resolveCorrelationId(
+    request.headers.get("x-correlation-id"), // mission D9
+  );
+  logger.info({
+    msg: "request",
+    method: request.method,
+    path: pathname,
+    correlationId,
+  });
   const hasSession = request.cookies.has("refresh_token");
   const hasProfile = request.cookies.has("pid");
 
@@ -22,7 +32,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/profiles", request.url));
   }
 
-  return NextResponse.next();
+  const forwardedHeaders = new Headers(request.headers);
+  forwardedHeaders.set("x-correlation-id", correlationId); // mission D9
+  return NextResponse.next({ request: { headers: forwardedHeaders } });
 }
 
 export const config = {
