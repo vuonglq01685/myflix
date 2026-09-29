@@ -9,13 +9,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./correlation-id": {
+      "types": "./dist/correlation-id.d.ts",
+      "default": "./dist/correlation-id.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.json && node --test dist/media/*.test.js"
+    "test": "tsc -p tsconfig.json && node --test 'dist/**/*.test.js'"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2"
