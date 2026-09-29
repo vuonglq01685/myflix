@@ -44,12 +44,31 @@ describe("HealthController", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("reports ok with gpu not_required when every other dependency is healthy", async () => {
+    const prisma = healthyPrisma();
+    const redis = healthyRedis();
+    const storage = healthyStorage();
+    mockGpuOk();
+
+    const controller = new HealthController(prisma, redis, storage);
+    const res = mockRes();
+    const body = await controller.check(res);
+
+    expect(body).toMatchObject({
+      status: "ok",
+      checks: {
+        postgres: "ok",
+        redis: "ok",
+        minio: "ok",
+        gpu: "not_required",
+      },
+    });
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   describe("AC2 — 503 and per-check status when a dependency fails", () => {
     it("marks only postgres failed and returns 503", async () => {
       mockGpuOk();
-      jest
-        .spyOn(global, "fetch")
-        .mockResolvedValue({ status: 503, json: async () => ({}) } as never);
       const prisma = {
         $queryRaw: jest.fn().mockRejectedValue(new Error("down")),
       } as never as PrismaService;
@@ -65,14 +84,17 @@ describe("HealthController", () => {
       expect(res.status).toHaveBeenCalledWith(503);
       expect(body).toMatchObject({
         status: "degraded",
-        checks: { postgres: "fail", redis: "ok", minio: "ok", gpu: "down" },
+        checks: {
+          postgres: "fail",
+          redis: "ok",
+          minio: "ok",
+          gpu: "not_required",
+        },
       });
     });
 
     it("marks only redis failed and returns 503", async () => {
-      jest
-        .spyOn(global, "fetch")
-        .mockResolvedValue({ status: 503, json: async () => ({}) } as never);
+      mockGpuOk();
       const redis = {
         ping: jest.fn().mockRejectedValue(new Error("down")),
       } as never as Redis;
@@ -88,14 +110,17 @@ describe("HealthController", () => {
       expect(res.status).toHaveBeenCalledWith(503);
       expect(body).toMatchObject({
         status: "degraded",
-        checks: { postgres: "ok", redis: "fail", minio: "ok", gpu: "down" },
+        checks: {
+          postgres: "ok",
+          redis: "fail",
+          minio: "ok",
+          gpu: "not_required",
+        },
       });
     });
 
     it("marks only minio failed and returns 503", async () => {
-      jest
-        .spyOn(global, "fetch")
-        .mockResolvedValue({ status: 503, json: async () => ({}) } as never);
+      mockGpuOk();
       const storage = {
         ping: jest.fn().mockRejectedValue(new Error("down")),
       } as never as StorageService;
@@ -111,7 +136,32 @@ describe("HealthController", () => {
       expect(res.status).toHaveBeenCalledWith(503);
       expect(body).toMatchObject({
         status: "degraded",
-        checks: { postgres: "ok", redis: "ok", minio: "fail", gpu: "down" },
+        checks: {
+          postgres: "ok",
+          redis: "ok",
+          minio: "fail",
+          gpu: "not_required",
+        },
+      });
+    });
+
+    it("marks only gpu down and returns 503", async () => {
+      jest
+        .spyOn(global, "fetch")
+        .mockResolvedValue({ status: 503, json: async () => ({}) } as never);
+      const controller = new HealthController(
+        healthyPrisma(),
+        healthyRedis(),
+        healthyStorage(),
+      );
+      const res = mockRes();
+
+      const body = await controller.check(res);
+
+      expect(res.status).toHaveBeenCalledWith(503);
+      expect(body).toMatchObject({
+        status: "degraded",
+        checks: { postgres: "ok", redis: "ok", minio: "ok", gpu: "down" },
       });
     });
   });
