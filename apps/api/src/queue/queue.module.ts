@@ -2,6 +2,7 @@ import { Global, Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
 import { QUEUE_CLEANUP, QUEUE_SUBTITLE, QUEUE_TRANSCODE } from "@myflix/shared";
+import { BullErrorLogger } from "./bull-error.logger";
 
 @Global()
 @Module({
@@ -30,6 +31,7 @@ import { QUEUE_CLEANUP, QUEUE_SUBTITLE, QUEUE_TRANSCODE } from "@myflix/shared";
       { name: QUEUE_CLEANUP },
     ),
   ],
+  providers: [BullErrorLogger],
   exports: [BullModule],
 })
 export class QueueModule {}

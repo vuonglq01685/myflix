@@ -90,4 +90,17 @@ describe("CleanupProcessor", () => {
     const secondCorrelationId = logs[logs.length - 1]!.correlationId;
     expect(secondCorrelationId).not.toBe(firstCorrelationId);
   });
+
+  it("logs a Worker error event through Pino instead of a raw stack trace (T14)", () => {
+    const errorSpy = jest.spyOn(PinoLogger.prototype, "error");
+
+    processor.onWorkerError(new Error("boom"));
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      expect.any(String),
+    );
+
+    errorSpy.mockRestore();
+  });
 });

@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { OnWorkerEvent, Processor, WorkerHost } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
 import { PinoLogger } from "nestjs-pino";
 import { storage, Store } from "nestjs-pino/storage";
@@ -100,6 +100,11 @@ export class TranscodeProcessor extends WorkerHost {
         }
       },
     );
+  }
+
+  @OnWorkerEvent("error")
+  onWorkerError(err: Error): void {
+    this.logger.error({ err }, "worker error"); // T14 / mission D10 — Worker không có listener "error" thì bullmq console.error() stack trace thô
   }
 
   private async mark(
