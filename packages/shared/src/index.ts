@@ -3,6 +3,7 @@ export * from "./error-codes";
 export * from "./password";
 export * from "./correlation-id";
 export * from "./log-redact";
+export * from "./pino-http-options";
 export * from "./media/ladder";
 export * from "./media/gop";
 export * from "./media/signed-url";
