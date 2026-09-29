@@ -6,9 +6,8 @@
 # before kb-*.yml — otherwise strata's own `kb build` / `kb pr lint` steps
 # get recorded as this repo's build and lint commands.
 #
-# Runs on the self-hosted runner (GitHub-hosted minutes are blocked on this
-# private repo's account billing). The host provides node 22 and pnpm 10.0.0
-# (package.json `packageManager`).
+# GitHub-hosted runner; node 22 via setup-node, pnpm from package.json
+# `packageManager` (10.0.0) via corepack.
 name: ci
 
 on:
@@ -25,12 +24,16 @@ permissions:
 
 jobs:
   build-test-lint:
-    runs-on: [self-hosted, strata-intake]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r build
       - run: pnpm -r test

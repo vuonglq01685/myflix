@@ -1,0 +1,12 @@
+---
+description: Coding conventions for ts files
+globs: **/*.ts,**/*.tsx,**/*.js,**/*.jsx
+alwaysApply: false
+---
+
+Before writing or reviewing ts code, read `docs/conventions/ts.md`
+and the five pack files it links under `docs/conventions/ts/` and
+`docs/conventions/common/`. If `docs/conventions/ts.local.md` exists it
+overrides them all. Where any of them conflicts with the repo's existing
+dominant style, the repo wins locally — record the conflict as a finding in
+the PR.

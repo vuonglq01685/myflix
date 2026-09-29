@@ -35,10 +35,7 @@ permissions:
   contents: read
 jobs:
   pr-lint:
-    # LOCAL DEVIATION (re-apply after `kb init`): self-hosted runner, not
-    # ubuntu-latest. GitHub-hosted minutes are blocked on this private repo's
-    # account billing; the self-hosted runner uses none.
-    runs-on: [self-hosted, strata-intake]
+    runs-on: ubuntu-latest
     env:
       # The description reaches the script through the environment and NEVER
       # through `${{ ... }}` inside `run:`. A PR body is attacker-controlled
@@ -49,14 +46,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      # setup-python cannot install on a self-hosted macOS runner (its Python
-      # builds hard-code /Users/runner/hostedtoolcache), so use the host's
-      # Python (Homebrew, >= 3.11 as strata-kb requires) in a throwaway venv.
-      - name: Install strata-kb 1.4.0
-        run: |
-          python3 -m venv "$RUNNER_TEMP/kb-venv"
-          "$RUNNER_TEMP/kb-venv/bin/pip" install --quiet strata-kb==1.4.0
-          echo "$RUNNER_TEMP/kb-venv/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install strata-kb==1.6.0
       - name: Check the PR description
         run: |
           printf '%s' "$PR_BODY" > "$RUNNER_TEMP/body.md"
