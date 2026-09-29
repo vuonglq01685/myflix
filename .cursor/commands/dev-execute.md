@@ -1,5 +1,5 @@
 ---
-mode: agent
+name: dev-execute
 description: Execute an approved implementation plan task-by-task under mandatory TDD in an isolated workspace, verifying and committing each task
 ---
 

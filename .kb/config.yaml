@@ -9,7 +9,7 @@
 kind: dev
 # hub: git URL or kb-hub path of the MAIN HUB — the ONLY read source for
 #      kb query / kb resolve / MCP. FILL THIS IN before implementing tickets.
-hub: "../myflix-center-kb"
+hub: "https://github.com/vuonglq01685/myflix-center-kb.git"
 # repo_id: repo name on the federation (pre-filled from the folder name)
 repo_id: "myflix"
 # intake: https://kb.internal:8321   # publish code knowledge via OIDC CI

@@ -1,5 +1,5 @@
 ---
-mode: agent
+name: dev-handover
 description: Close out a ticket — re-check citation freshness, run the full suite and paste the real output, record service history, and assemble the PR description
 ---
 
