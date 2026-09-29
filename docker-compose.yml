@@ -144,7 +144,7 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu, video]
+              capabilities: [gpu, compute, video, utility] # A5 r1 — khớp NVIDIA_DRIVER_CAPABILITIES ở environment; utility = nvidia-smi cho GPU probe (D7)
 
   postgres:
     image: postgres:16-alpine
