@@ -3,7 +3,7 @@ import { BullModule } from "@nestjs/bullmq";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { LoggerModule } from "nestjs-pino";
 import {
-  LOG_REDACT_CONFIG,
+  PINO_HTTP_OPTIONS,
   QUEUE_CLEANUP,
   QUEUE_SUBTITLE,
   QUEUE_TRANSCODE,
@@ -25,7 +25,7 @@ import { CleanupProcessor } from "./jobs/cleanup.processor";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-    LoggerModule.forRoot({ pinoHttp: { redact: LOG_REDACT_CONFIG } }),
+    LoggerModule.forRoot({ pinoHttp: PINO_HTTP_OPTIONS }),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
