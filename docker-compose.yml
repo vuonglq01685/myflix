@@ -105,8 +105,8 @@ services:
           "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
-      timeout: 3s
-      retries: 3
+      timeout: 3s # mission D8 / Q14
+      retries: 3 # mission D8 / Q14
       start_period: 40s
 
   # ── The only GPU-bound service (ADR-005) ──────────────────────────────────
@@ -127,7 +127,7 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
     volumes:
       - transcode-scratch:/scratch
-    expose: ["4100"] # GPU probe HTTP listener (Task 4)
+    expose: ["4100"] # GPU probe HTTP listener, compose-network only (mission D7)
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
