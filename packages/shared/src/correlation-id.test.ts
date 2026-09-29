@@ -32,3 +32,21 @@ test("resolveCorrelationId regenerates when the candidate contains a newline", (
 test("isValidCorrelationId rejects a value with whitespace", () => {
   assert.equal(isValidCorrelationId("bad id"), false);
 });
+
+// AC7 boundaries (mission D9 regex ^[A-Za-z0-9._-]{1,64}$): review a3 r1 S1.
+test("resolveCorrelationId returns a 64-char candidate unchanged (upper boundary)", () => {
+  const maxLength = "a".repeat(64);
+  assert.equal(resolveCorrelationId(maxLength), maxLength);
+});
+
+test("isValidCorrelationId accepts the full charset (letters, digits, . _ -)", () => {
+  assert.equal(isValidCorrelationId("A1.b_c-9"), true);
+});
+
+test("resolveCorrelationId generates a UUID v4 for an empty string", () => {
+  assert.match(resolveCorrelationId(""), UUID_V4);
+});
+
+test("resolveCorrelationId generates a UUID v4 for null", () => {
+  assert.match(resolveCorrelationId(null), UUID_V4);
+});
