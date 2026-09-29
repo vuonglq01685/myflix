@@ -751,14 +751,16 @@ Depends on: task 5
 
 **Steps**
 
-- [ ] Failing check: `docker compose config --format json | jq -e '.services.transcoder.deploy.resources.reservations.devices[0].capabilities == ["gpu","compute","video","utility"]'`. Expect: FAIL (exit 1) — hiện là `["gpu","video"]`.
-- [ ] Sửa dòng `capabilities` như Interfaces.
-- [ ] Chạy lại lệnh `jq -e`. Expect: exit 0. Thêm: `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml config --format json | jq -e '.services.transcoder.deploy == null or (.services.transcoder.deploy.resources.reservations.devices // []) == []'` — nhánh CPU vẫn không yêu cầu GPU (exit 0).
+- [x] Failing check: `docker compose config --format json | jq -e '.services.transcoder.deploy.resources.reservations.devices[0].capabilities == ["gpu","compute","video","utility"]'`. Expect: FAIL (exit 1) — hiện là `["gpu","video"]`.
+- [x] Sửa dòng `capabilities` như Interfaces.
+- [x] Chạy lại lệnh `jq -e`. Expect: exit 0. Thêm: `docker compose -f docker-compose.yml -f infra/compose/docker-compose.cpu.yml config --format json | jq -e '.services.transcoder.deploy == null or (.services.transcoder.deploy.resources.reservations.devices // []) == []'` — nhánh CPU vẫn không yêu cầu GPU (exit 0).
 
 Exempt: config — verified by docker compose config (jq) trước/sau + bash scripts/verify-phase0.sh nhánh CPU; không có logic mới, chỉ mở rộng danh sách capability. Nhánh GPU: Dev chạy `bash scripts/verify-phase0.sh` trên host NVIDIA (DoD-0-2) và `curl /api/health` → `checks.gpu === "ok"` trước GATE 4 (Finding 19).
 
-- [ ] `cmd.lint` (prettier phủ YAML). Paste output.
-- [ ] Commit: `chore(compose): request compute/utility GPU capabilities so nvidia-smi is present for the probe (A5 r1)`.
+- [x] `cmd.lint` (prettier phủ YAML). Paste output.
+- [x] Commit: `chore(compose): request compute/utility GPU capabilities so nvidia-smi is present for the probe (A5 r1)`.
+
+Review: ✅ r1
 
 ## Task 16: AC3 — `api` health: huỷ `HeadBucket` khi quá hạn, redis fail-fast khi chưa `ready` (A5 r1 SUGGESTED 3)
 
