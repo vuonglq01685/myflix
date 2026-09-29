@@ -620,12 +620,14 @@ Depends on: none
 
 **Steps**
 
-- [ ] Failing test: viết 2 spec giống nhau (mỗi app một file): `jest.mock("ioredis", () => ({ __esModule: true, default: class extends EventEmitter { constructor(public opts: unknown) { super(); } } }))`, `const errorSpy = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined)`, dựng `createRedisClient({ getOrThrow: (k) => ({ REDIS_HOST: "redis", REDIS_PORT: 6379 })[k] } as never)`, `client.emit("error", new Error("ECONNREFUSED"))` → assert không throw và `errorSpy` được gọi với `"ECONNREFUSED"`. Chạy `pnpm --filter @myflix/api test -- redis.module` và `pnpm --filter @myflix/transcoder test -- redis.module`. Expect: FAIL — `createRedisClient` chưa export (`TS2305`).
-- [ ] Sửa 2 `redis.module.ts` đúng như Interfaces.
-- [ ] Chạy lại 2 lệnh test. Expect: PASS.
-- [ ] Self-review checkpoint: `maxRetriesPerRequest: null` giữ nguyên; `health.controller.ts` (`@Inject(REDIS)`) và `job-events.publisher.ts` không cần sửa (token không đổi).
-- [ ] Chạy `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/transcoder test` (scoped) và `cmd.lint`. Paste output vào PR.
-- [ ] Commit: `fix: route ioredis error events through the Pino logger in api and transcoder (T14)`.
+- [x] Failing test: viết 2 spec giống nhau (mỗi app một file): `jest.mock("ioredis", () => ({ __esModule: true, default: class extends EventEmitter { constructor(public opts: unknown) { super(); } } }))`, `const errorSpy = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined)`, dựng `createRedisClient({ getOrThrow: (k) => ({ REDIS_HOST: "redis", REDIS_PORT: 6379 })[k] } as never)`, `client.emit("error", new Error("ECONNREFUSED"))` → assert không throw và `errorSpy` được gọi với `"ECONNREFUSED"`. Chạy `pnpm --filter @myflix/api test -- redis.module` và `pnpm --filter @myflix/transcoder test -- redis.module`. Expect: FAIL — `createRedisClient` chưa export (`TS2305`).
+- [x] Sửa 2 `redis.module.ts` đúng như Interfaces.
+- [x] Chạy lại 2 lệnh test. Expect: PASS.
+- [x] Self-review checkpoint: `maxRetriesPerRequest: null` giữ nguyên; `health.controller.ts` (`@Inject(REDIS)`) và `job-events.publisher.ts` không cần sửa (token không đổi).
+- [x] Chạy `pnpm --filter @myflix/api test`, `pnpm --filter @myflix/transcoder test` (scoped) và `cmd.lint`. Paste output vào PR.
+- [x] Commit: `fix: route ioredis error events through the Pino logger in api and transcoder (T14)`.
+
+Review: ✅ r1
 
 ## Findings for the PR
 
