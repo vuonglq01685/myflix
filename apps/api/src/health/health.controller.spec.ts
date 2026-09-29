@@ -353,6 +353,47 @@ describe("HealthController", () => {
       expect(String(warn.mock.calls[0]?.[0])).toContain("gpu");
     });
 
+    it("warns naming gpu and the cause when the transcoder fetch rejects", async () => {
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+      jest.spyOn(global, "fetch").mockRejectedValue(new Error("fetch failed"));
+
+      await build(healthyRedis()).check(mockRes());
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      const line = String(warn.mock.calls[0]?.[0]);
+      expect(line).toContain("gpu");
+      expect(line).toContain("fetch failed");
+    });
+
+    it.each([
+      [
+        "postgres",
+        () =>
+          new HealthController(
+            {
+              $queryRaw: jest.fn().mockRejectedValue(new Error("boom")),
+            } as never as PrismaService,
+            healthyRedis(),
+            healthyStorage(),
+          ),
+      ],
+      [
+        "minio",
+        () =>
+          new HealthController(healthyPrisma(), healthyRedis(), {
+            ping: jest.fn().mockRejectedValue(new Error("boom")),
+          } as never as StorageService),
+      ],
+    ])("warns naming %s when only that check fails", async (name, make) => {
+      mockGpuOk();
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+
+      await make().check(mockRes());
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain(`${name} check failed`);
+    });
+
     it("does not warn when everything is healthy", async () => {
       mockGpuOk();
       const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
