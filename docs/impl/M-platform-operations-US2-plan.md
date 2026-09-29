@@ -351,17 +351,19 @@ Depends on: task 4
 
 **Steps**
 
-- [ ] Failing test: `docker compose config --format json | jq -e '.services.api.healthcheck.timeout == "3s" and .services.api.healthcheck.retries == 3'`. Expect: FAIL — `timeout` hiện là `"5s"`, `retries` hiện là `10`.
-- [ ] Sửa 2 dòng `healthcheck` của `api` và thêm `expose: ["4100"]` cho `transcoder` như Interfaces.
-- [ ] Chạy lại lệnh `jq -e` ở bước 1. Expect: exit 0.
-- [ ] `docker compose config --format json | jq -e '.services.transcoder.expose == ["4100"] and .services.transcoder.ports == null'` — expect exit 0 (không publish ra host).
+- [x] Failing test: `docker compose config --format json | jq -e '.services.api.healthcheck.timeout == "3s" and .services.api.healthcheck.retries == 3'`. Expect: FAIL — `timeout` hiện là `"5s"`, `retries` hiện là `10`.
+- [x] Sửa 2 dòng `healthcheck` của `api` và thêm `expose: ["4100"]` cho `transcoder` như Interfaces.
+- [x] Chạy lại lệnh `jq -e` ở bước 1. Expect: exit 0.
+- [x] `docker compose config --format json | jq -e '.services.transcoder.expose == ["4100"] and .services.transcoder.ports == null'` — expect exit 0 (không publish ra host).
 
 Exempt: config — verified by docker compose config (jq) + bash scripts/verify-phase0.sh output (bên dưới); không có logic mới, chỉ đổi giá trị healthcheck/expose trong compose.
 
-- [ ] (Host, Docker only) `docker compose up -d --build transcoder api`; đợi `api` `healthy`; chạy `docker compose exec -T api curl -fsS http://transcoder:4100/health/gpu` (hoặc lệnh tương đương) — xác nhận reachable trong mạng compose. Paste output.
-- [ ] Per US1 AC27: chạy lại `bash scripts/verify-phase0.sh` trong cùng commit (không sửa nội dung file — chỉ tái xác nhận DoD-0-1 vẫn xanh sau đổi compose). Paste output.
-- [ ] Chạy `cmd.lint` (compose không nằm trong phạm vi eslint/prettier nhưng chạy để giữ pipeline nhất quán). Paste output.
-- [ ] Commit: `chore(compose): tighten api healthcheck timeout/retries, expose transcoder GPU probe port (D8, Q14)`.
+- [x] (Host, Docker only) `docker compose up -d --build transcoder api`; đợi `api` `healthy`; chạy `docker compose exec -T api curl -fsS http://transcoder:4100/health/gpu` (hoặc lệnh tương đương) — xác nhận reachable trong mạng compose. Paste output.
+- [x] Per US1 AC27: chạy lại `bash scripts/verify-phase0.sh` trong cùng commit (không sửa nội dung file — chỉ tái xác nhận DoD-0-1 vẫn xanh sau đổi compose). Paste output.
+- [x] Chạy `cmd.lint` (compose không nằm trong phạm vi eslint/prettier nhưng chạy để giữ pipeline nhất quán). Paste output.
+- [x] Commit: `chore(compose): tighten api healthcheck timeout/retries, expose transcoder GPU probe port (D8, Q14)`.
+
+Review: ✅ r2
 
 ## Task 6: AC5/AC6/AC7/AC10 — `apps/api`: `logger.options.ts`, correlation echo, redact, `AllExceptionsFilter` fallback
 
