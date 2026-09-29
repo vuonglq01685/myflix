@@ -103,6 +103,7 @@ describe("HealthController", () => {
     it("marks only redis failed and returns 503", async () => {
       mockGpuOk();
       const redis = {
+        status: "ready", // A3 r1 — pass the fail-fast gate so the rejected ping path is what this case exercises
         ping: jest.fn().mockRejectedValue(new Error("down")),
       } as never as Redis;
       const controller = new HealthController(
@@ -180,6 +181,7 @@ describe("HealthController", () => {
     it("times out a hung redis.ping within CHECK_TIMEOUT_MS", async () => {
       mockGpuOk();
       const redis = {
+        status: "ready", // A3 r1 — pass the fail-fast gate so withTimeout is what this case exercises
         ping: jest.fn(() => new Promise(() => {})),
       } as never as Redis;
       const controller = new HealthController(
@@ -278,8 +280,13 @@ describe("HealthController", () => {
 
       await controller.check(res);
 
-      expect(timeoutSpy).toHaveBeenCalledWith(1_000); // mission D8
       expect(storage.ping).toHaveBeenCalledWith(expect.any(AbortSignal));
+      const storageSignal = (storage.ping as jest.Mock).mock.calls[0]?.[0];
+      const storageCall = timeoutSpy.mock.results.findIndex(
+        (r) => r.value === storageSignal,
+      );
+      expect(storageCall).toBeGreaterThanOrEqual(0);
+      expect(timeoutSpy.mock.calls[storageCall]).toEqual([1_000]); // mission D8 — the storage signal, not the gpu one
     });
   });
 
