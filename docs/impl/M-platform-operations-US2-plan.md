@@ -27,13 +27,15 @@ Depends on: none
 
 **Steps**
 
-- [ ] Failing test: viết `packages/storage/src/storage.client.ping.test.ts` (dùng `node:test` + `node:assert/strict`, cùng phong cách `packages/shared/src/media/media.test.ts`) — monkey-patch `S3Client.prototype.send` để ghi lại lệnh gửi đi, dựng `new StorageClient({ endpoint: "http://localhost:9000", region: "us-east-1", accessKeyId: "x", secretAccessKey: "x", buckets: { source: "myflix-source", media: "myflix-media", images: "myflix-images", staging: "myflix-staging" } })`, gọi `await client.ping()`, assert lệnh gửi đi là 1 `HeadBucketCommand` với `input.Bucket === "myflix-source"`; khôi phục `S3Client.prototype.send` gốc trong `finally`. Chạy `pnpm --filter @myflix/storage test` (tạm sửa `scripts.test` trước — xem bước tiếp). Expect: FAIL — `tsc -p tsconfig.json` báo `TS2339: Property 'ping' does not exist on type 'StorageClient'` (method chưa tồn tại).
-- [ ] Sửa `scripts.test` trong `packages/storage/package.json` thành `"tsc -p tsconfig.json && node --test dist/storage.client.ping.test.js"`.
-- [ ] Thêm `HeadBucketCommand` vào import list `@aws-sdk/client-s3` ở đầu `storage.client.ts`; thêm method `ping()` như trên vào cuối class `StorageClient`.
-- [ ] Chạy lại `pnpm --filter @myflix/storage test`. Expect: PASS — `tsc` sạch, `node --test` báo 1 test pass.
-- [ ] Self-review checkpoint: `ping()` không thêm field/constructor param nào; chỉ dùng lại `this.s3`/`this.buckets.source` đã có.
-- [ ] Chạy `pnpm --filter @myflix/storage test` (scoped) và `cmd.lint`. Paste output vào PR.
-- [ ] Commit: `feat(storage): add StorageClient.ping() for health check probe`.
+- [x] Failing test: viết `packages/storage/src/storage.client.ping.test.ts` (dùng `node:test` + `node:assert/strict`, cùng phong cách `packages/shared/src/media/media.test.ts`) — monkey-patch `S3Client.prototype.send` để ghi lại lệnh gửi đi, dựng `new StorageClient({ endpoint: "http://localhost:9000", region: "us-east-1", accessKeyId: "x", secretAccessKey: "x", buckets: { source: "myflix-source", media: "myflix-media", images: "myflix-images", staging: "myflix-staging" } })`, gọi `await client.ping()`, assert lệnh gửi đi là 1 `HeadBucketCommand` với `input.Bucket === "myflix-source"`; khôi phục `S3Client.prototype.send` gốc trong `finally`. Chạy `pnpm --filter @myflix/storage test` (tạm sửa `scripts.test` trước — xem bước tiếp). Expect: FAIL — `tsc -p tsconfig.json` báo `TS2339: Property 'ping' does not exist on type 'StorageClient'` (method chưa tồn tại).
+- [x] Sửa `scripts.test` trong `packages/storage/package.json` thành `"tsc -p tsconfig.json && node --test dist/storage.client.ping.test.js"`.
+- [x] Thêm `HeadBucketCommand` vào import list `@aws-sdk/client-s3` ở đầu `storage.client.ts`; thêm method `ping()` như trên vào cuối class `StorageClient`.
+- [x] Chạy lại `pnpm --filter @myflix/storage test`. Expect: PASS — `tsc` sạch, `node --test` báo 1 test pass.
+- [x] Self-review checkpoint: `ping()` không thêm field/constructor param nào; chỉ dùng lại `this.s3`/`this.buckets.source` đã có.
+- [x] Chạy `pnpm --filter @myflix/storage test` (scoped) và `cmd.lint`. Paste output vào PR.
+- [x] Commit: `feat(storage): add StorageClient.ping() for health check probe`.
+
+Review: ✅ r1
 
 ## Task 2: AC5/AC6/AC7/AC9/AC10 — `packages/shared`: `correlation-id.ts` + `log-redact.ts`
 
@@ -61,14 +63,16 @@ Depends on: none
 
 **Steps**
 
-- [ ] Failing test: viết `packages/shared/src/correlation-id.test.ts` (`node:test`) — case `resolveCorrelationId(undefined)` khớp regex UUID v4 `/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i`; case `resolveCorrelationId("t7-probe-0001")` trả nguyên giá trị; case chuỗi 65 ký tự → sinh giá trị mới (không phải chuỗi gốc); case chuỗi chứa `"\n"` → sinh giá trị mới; case `isValidCorrelationId("bad id")` (khoảng trắng) → `false`. Viết `packages/shared/src/log-redact.test.ts` — assert `LOG_REDACT_CONFIG.paths` deep-equal đúng 3 chuỗi trên theo đúng thứ tự, `LOG_REDACT_CONFIG.censor === "[REDACTED]"`. Chạy `pnpm --filter @myflix/shared test`. Expect: FAIL — `tsc -p tsconfig.json` báo `TS2307: Cannot find module './correlation-id'` / `'./log-redact'` (file chưa tồn tại).
-- [ ] Tạo `packages/shared/src/correlation-id.ts` và `packages/shared/src/log-redact.ts` đúng nội dung ở Interfaces.
-- [ ] Thêm 2 dòng export vào `packages/shared/src/index.ts`.
-- [ ] Sửa `packages/shared/package.json`: thêm khối `"./correlation-id"` vào `exports`; sửa `scripts.test` từ `"tsc -p tsconfig.json && node --test dist/media/*.test.js"` thành `"tsc -p tsconfig.json && node --test 'dist/**/*.test.js'"` — **dấu nháy đơn bắt buộc** (S4 của design: pnpm chạy script `test` qua `sh`, `sh` không hỗ trợ globstar `**`; để trần thì shell tự giãn glob trước khi Node thấy, chỉ khớp `dist/<1 thư mục>/*.test.js`, bỏ sót `dist/correlation-id.test.js`/`dist/log-redact.test.js` ở gốc `dist/`). Không đổi glob này thì CI không bao giờ chạy 2 test mới.
-- [ ] Chạy lại `pnpm --filter @myflix/shared test`. Expect: PASS — `tsc` sạch, `node --test` báo tests từ cả `dist/correlation-id.test.js`, `dist/log-redact.test.js` lẫn `dist/media/media.test.js` (tổng số test tăng so với trước).
-- [ ] Self-review checkpoint: `correlation-id.ts` không import gì (giữ subpath sạch khỏi graph `password.ts`/argon2); `log-redact.ts` là literal thuần, không logic.
-- [ ] Chạy `pnpm --filter @myflix/shared test` (scoped) và `cmd.lint`. Paste output vào PR.
-- [ ] Commit: `feat(shared): add correlation-id and log-redact helpers (D9, D10)`.
+- [x] Failing test: viết `packages/shared/src/correlation-id.test.ts` (`node:test`) — case `resolveCorrelationId(undefined)` khớp regex UUID v4 `/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i`; case `resolveCorrelationId("t7-probe-0001")` trả nguyên giá trị; case chuỗi 65 ký tự → sinh giá trị mới (không phải chuỗi gốc); case chuỗi chứa `"\n"` → sinh giá trị mới; case `isValidCorrelationId("bad id")` (khoảng trắng) → `false`. Viết `packages/shared/src/log-redact.test.ts` — assert `LOG_REDACT_CONFIG.paths` deep-equal đúng 3 chuỗi trên theo đúng thứ tự, `LOG_REDACT_CONFIG.censor === "[REDACTED]"`. Chạy `pnpm --filter @myflix/shared test`. Expect: FAIL — `tsc -p tsconfig.json` báo `TS2307: Cannot find module './correlation-id'` / `'./log-redact'` (file chưa tồn tại).
+- [x] Tạo `packages/shared/src/correlation-id.ts` và `packages/shared/src/log-redact.ts` đúng nội dung ở Interfaces.
+- [x] Thêm 2 dòng export vào `packages/shared/src/index.ts`.
+- [x] Sửa `packages/shared/package.json`: thêm khối `"./correlation-id"` vào `exports`; sửa `scripts.test` từ `"tsc -p tsconfig.json && node --test dist/media/*.test.js"` thành `"tsc -p tsconfig.json && node --test 'dist/**/*.test.js'"` — **dấu nháy đơn bắt buộc** (S4 của design: pnpm chạy script `test` qua `sh`, `sh` không hỗ trợ globstar `**`; để trần thì shell tự giãn glob trước khi Node thấy, chỉ khớp `dist/<1 thư mục>/*.test.js`, bỏ sót `dist/correlation-id.test.js`/`dist/log-redact.test.js` ở gốc `dist/`). Không đổi glob này thì CI không bao giờ chạy 2 test mới.
+- [x] Chạy lại `pnpm --filter @myflix/shared test`. Expect: PASS — `tsc` sạch, `node --test` báo tests từ cả `dist/correlation-id.test.js`, `dist/log-redact.test.js` lẫn `dist/media/media.test.js` (tổng số test tăng so với trước).
+- [x] Self-review checkpoint: `correlation-id.ts` không import gì (giữ subpath sạch khỏi graph `password.ts`/argon2); `log-redact.ts` là literal thuần, không logic.
+- [x] Chạy `pnpm --filter @myflix/shared test` (scoped) và `cmd.lint`. Paste output vào PR.
+- [x] Commit: `feat(shared): add correlation-id and log-redact helpers (D9, D10)`.
+
+Review: ✅ r2
 
 ## Task 3: AC1/AC2/AC3/AC4 — `apps/api`: `HealthController` rewrite
 
