@@ -5,6 +5,7 @@ import {
   CreateMultipartUploadCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   ListObjectsV2Command,
   ListPartsCommand,
   PutObjectCommand,
@@ -231,5 +232,10 @@ export class StorageClient {
     const keys = await this.listKeys(bucket, prefix);
     if (keys.length) await this.deleteObjects(bucket, keys);
     return keys.length;
+  }
+
+  /** Health check probe: confirms the source bucket is reachable (design §3.2). */
+  async ping(): Promise<void> {
+    await this.s3.send(new HeadBucketCommand({ Bucket: this.buckets.source }));
   }
 }
