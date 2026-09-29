@@ -2,7 +2,12 @@ import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { LoggerModule } from "nestjs-pino";
-import { QUEUE_CLEANUP, QUEUE_SUBTITLE, QUEUE_TRANSCODE } from "@myflix/shared";
+import {
+  LOG_REDACT_CONFIG,
+  QUEUE_CLEANUP,
+  QUEUE_SUBTITLE,
+  QUEUE_TRANSCODE,
+} from "@myflix/shared";
 
 import { validateEnv } from "./config/env";
 import { HealthModule } from "./health/health.module";
@@ -19,7 +24,7 @@ import { CleanupProcessor } from "./jobs/cleanup.processor";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-    LoggerModule.forRoot(),
+    LoggerModule.forRoot({ pinoHttp: { redact: LOG_REDACT_CONFIG } }),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
