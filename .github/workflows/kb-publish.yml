@@ -39,10 +39,10 @@ jobs:
       # setup-python cannot install on a self-hosted macOS runner (its Python
       # builds hard-code /Users/runner/hostedtoolcache), so use the host's
       # Python (Homebrew, >= 3.11 as strata-kb requires) in a throwaway venv.
-      - name: Install strata-kb 1.2.0
+      - name: Install strata-kb 1.4.0
         run: |
           python3 -m venv "$RUNNER_TEMP/kb-venv"
-          "$RUNNER_TEMP/kb-venv/bin/pip" install --quiet strata-kb==1.2.0
+          "$RUNNER_TEMP/kb-venv/bin/pip" install --quiet strata-kb==1.4.0
           echo "$RUNNER_TEMP/kb-venv/bin" >> "$GITHUB_PATH"
       # CI must never create `pending` -svc content, so --scaffold-svc is
       # never passed here (it would fail the kb build step below).
