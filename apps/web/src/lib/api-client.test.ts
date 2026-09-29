@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, apiFetch } from "./api-client";
 
+vi.mock("next/headers", () => ({
+  headers: async () => new Map([["x-correlation-id", "t11-probe-0001"]]),
+}));
+
 const respond = (status: number, body?: unknown) =>
   vi.fn(
     async () =>
@@ -47,5 +51,20 @@ describe("apiFetch — HLD §8.2 error envelope", () => {
       statusCode: 502,
       errorCode: "INTERNAL_ERROR",
     });
+  });
+});
+
+describe("apiFetch — AC8 forwards correlationId during SSR", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("attaches X-Correlation-Id from the request-scoped header store to the outgoing request", async () => {
+    const fetchSpy = respond(204);
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await apiFetch("/x");
+
+    const [, init] = fetchSpy.mock.calls[0]!;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Correlation-Id"]).toBe("t11-probe-0001");
   });
 });
