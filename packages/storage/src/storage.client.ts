@@ -235,7 +235,10 @@ export class StorageClient {
   }
 
   /** Health check probe: confirms the source bucket is reachable (design §3.2). */
-  async ping(): Promise<void> {
-    await this.s3.send(new HeadBucketCommand({ Bucket: this.buckets.source }));
+  async ping(signal?: AbortSignal): Promise<void> {
+    await this.s3.send(
+      new HeadBucketCommand({ Bucket: this.buckets.source }),
+      { abortSignal: signal }, // A5 r1 — huỷ request thua withTimeout, không giữ socket của pool 50
+    );
   }
 }

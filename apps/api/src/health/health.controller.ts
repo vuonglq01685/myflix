@@ -27,8 +27,13 @@ export class HealthController {
   async check(@Res({ passthrough: true }) res: Response) {
     const [postgres, redis, minio, gpu] = await Promise.all([
       probe(() => this.prisma.$queryRaw`SELECT 1`),
-      probe(() => this.redis.ping()),
-      probe(() => this.storage.ping()),
+      probe(() =>
+        // A5 r1 — không xếp PING vào offline queue của ioredis khi mất kết nối
+        this.redis.status === "ready"
+          ? this.redis.ping()
+          : Promise.reject(new Error("redis not ready")),
+      ),
+      probe(() => this.storage.ping(AbortSignal.timeout(CHECK_TIMEOUT_MS))), // mission D8
       probeGpu(),
     ]);
 
