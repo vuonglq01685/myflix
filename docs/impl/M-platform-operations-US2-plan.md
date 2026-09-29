@@ -543,7 +543,7 @@ Depends on: task 1, task 2, task 3, task 4, task 5, task 6, task 7, task 8, task
 - [x] `docker compose down`.
 - [x] Commit: `chore: final verification for M-platform-operations-US2 (health check + correlation ID)` (nếu có thay đổi cần commit — nếu không, bỏ qua bước commit và ghi trong PR rằng Task 9 chỉ verify).
 
-Review: ✅ verified (full run at Task 12 HEAD, T14 subset rerun at Task 13 HEAD — all PASS)
+Review: ✅ verified (full run at Task 12 HEAD; T2/T5/T14 rerun at Task 13 HEAD; T1/T2/T5/T10/T14 + NFR rows 1 & 4 + api e2e live rerun at Task 14 HEAD — all PASS)
 
 ## Amendment 1 (Dev-directed, 2026-09-29) — A3/Task 9 findings the Dev chose to apply
 
@@ -722,13 +722,15 @@ Depends on: task 2, task 4, task 6, task 7, task 13
 
 **Steps**
 
-- [ ] Failing test: viết `packages/shared/src/pino-http-options.test.ts` (`node:test`): (1) `genReqId({ headers: { "x-correlation-id": "t7-probe-0001" } } as never, res)` với `res = { setHeader: (k, v) => calls.push([k, v]) }` → trả `"t7-probe-0001"` và `calls` deep-equal `[["X-Correlation-Id", "t7-probe-0001"]]`; (2) header sai định dạng (`"bad id"`) → trả chuỗi khớp regex UUID v4 (copy từ `correlation-id.test.ts`) và khác `"bad id"`; (3) header mảng `["a1", "a2"]` → trả `"a1"`; (4) `PINO_HTTP_OPTIONS.customAttributeKeys` deep-equal `{ reqId: "correlationId" }`, `quietReqLogger === true`, `redact === LOG_REDACT_CONFIG`. Chạy `pnpm --filter @myflix/shared test`. Expect: FAIL — `TS2307: Cannot find module './pino-http-options'`.
-- [ ] Tạo `pino-http-options.ts`, thêm export vào `index.ts`, đổi `apps/api/src/logger.options.ts` thành re-export, đổi `LoggerModule.forRoot` của `transcoder` như Interfaces.
-- [ ] Chạy lại `pnpm --filter @myflix/shared test`. Expect: PASS (25 test, +4).
-- [ ] Chạy `pnpm --filter @myflix/api test` (spec `logger.options.spec.ts` của Task 6 vẫn xanh qua re-export) và `pnpm --filter @myflix/transcoder test`. Expect: PASS, không đổi số test.
-- [ ] Self-review checkpoint: `git diff apps/api/src/logger.options.spec.ts apps/api/src/app.module.ts` rỗng; `grep -rn "logger.options" apps/transcoder/src` rỗng (transcoder import từ `@myflix/shared`).
-- [ ] Chạy `pnpm --filter @myflix/shared build`, `pnpm --filter @myflix/api build`, `pnpm --filter @myflix/transcoder build`, `pnpm --filter web build` (subpath Edge không bị ảnh hưởng) và `cmd.lint`. Paste output vào PR.
-- [ ] Commit: `refactor(shared): share pino-http correlation options; transcoder access log carries correlationId (A4 S2)`.
+- [x] Failing test: viết `packages/shared/src/pino-http-options.test.ts` (`node:test`): (1) `genReqId({ headers: { "x-correlation-id": "t7-probe-0001" } } as never, res)` với `res = { setHeader: (k, v) => calls.push([k, v]) }` → trả `"t7-probe-0001"` và `calls` deep-equal `[["X-Correlation-Id", "t7-probe-0001"]]`; (2) header sai định dạng (`"bad id"`) → trả chuỗi khớp regex UUID v4 (copy từ `correlation-id.test.ts`) và khác `"bad id"`; (3) header mảng `["a1", "a2"]` → trả `"a1"`; (4) `PINO_HTTP_OPTIONS.customAttributeKeys` deep-equal `{ reqId: "correlationId" }`, `quietReqLogger === true`, `redact === LOG_REDACT_CONFIG`. Chạy `pnpm --filter @myflix/shared test`. Expect: FAIL — `TS2307: Cannot find module './pino-http-options'`.
+- [x] Tạo `pino-http-options.ts`, thêm export vào `index.ts`, đổi `apps/api/src/logger.options.ts` thành re-export, đổi `LoggerModule.forRoot` của `transcoder` như Interfaces.
+- [x] Chạy lại `pnpm --filter @myflix/shared test`. Expect: PASS (25 test, +4).
+- [x] Chạy `pnpm --filter @myflix/api test` (spec `logger.options.spec.ts` của Task 6 vẫn xanh qua re-export) và `pnpm --filter @myflix/transcoder test`. Expect: PASS, không đổi số test.
+- [x] Self-review checkpoint: `git diff apps/api/src/logger.options.spec.ts apps/api/src/app.module.ts` rỗng; `grep -rn "logger.options" apps/transcoder/src` rỗng (transcoder import từ `@myflix/shared`).
+- [x] Chạy `pnpm --filter @myflix/shared build`, `pnpm --filter @myflix/api build`, `pnpm --filter @myflix/transcoder build`, `pnpm --filter web build` (subpath Edge không bị ảnh hưởng) và `cmd.lint`. Paste output vào PR.
+- [x] Commit: `refactor(shared): share pino-http correlation options; transcoder access log carries correlationId (A4 S2)`.
+
+Review: ✅ r2
 
 ## Findings for the PR
 
